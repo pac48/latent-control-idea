@@ -3,6 +3,9 @@ function [loss,gradients,state] = modelGradients(net, X, Y)
 % Forward data through network.
 [Y_pred,state] = forward(net, X);
 
+grid = -1:.03:1;
+
+
 % Calculate cross-entropy loss.
 loss = sum(abs(Y_pred-Y),'all');
 

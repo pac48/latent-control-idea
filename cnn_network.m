@@ -6,65 +6,45 @@ fdsTrain = fileDatastore('data/', "ReadFcn", @customLoad, "IncludeSubfolders", t
 tmp = read(fdsTrain);
 dataPointTemplate = tmp{1};
 inputSize = size(dataPointTemplate.x);
-
-% squeezeNet = squeezenet('Weights','imagenet');
-% detector = yolov3ObjectDetector("tiny-yolov3-coco");
-% net = resnet50('Weights','imagenet');
+[X,Y] = meshgrid(-1:.03:1,-1:.03:1);
+XFlat = reshape(X, 1, []);
+YFlat = reshape(Y, 1, []);
 
 preLayers = [
     imageInputLayer(inputSize, 'Name','data', 'Normalization','none');
     passThroughLayer
-    leakyReluLayer('Name', 'preLayersOut')
-%     resize2dLayer('OutputSize', [224 224], 'Name','preLayersOut')
     ];
 
 postLayers = [
-%     resize2dLayer('OutputSize', [10 10], 'Method', 'bilinear', 'Name','postLayersIn')
-    leakyReluLayer('Name','postLayersIn')
-    fullyConnectedLayer(2,'WeightL2Factor',1)];
-
-
-% lgraph = squeezeNet.layerGraph;
-% lgraph = detector.Network.layerGraph;
-% lgraph = net.layerGraph;
-
-% names = arrayfun(@(l) l.Name, lgraph.Layers(18:end), 'UniformOutput', false);
-% lgraph = lgraph.removeLayers(names);
-% lgraph = lgraph.removeLayers('input_1');
+    convolution2dLayer([1,1], 1,'Padding','same', 'Stride', 1,'Name','postLayersIn')
+    averagePooling2dLayer([5,5], 'Padding','same')
+    flattenLayer
+    softmaxLayer
+    functionLayer(@(W) [XFlat*W; YFlat*W] )
+    ];
 
 layers = [
+% averagePooling2dLayer([3,3],'Padding','same','Name', 'LayersIn')
+convolution2dLayer([10,10], 8,'Padding','same', 'Stride', 1,'Name', 'LayersIn')
+tanhLayer
 
-convolution2dLayer([8,8], 8,'Padding','same', 'Stride', 1,'Name', 'LayersIn')
-% maxPooling2dLayer([3 3])
-tanhLayer()
-
-resize2dLayer('Scale', .5); 
 convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
-% maxPooling2dLayer([3 3])
-tanhLayer()
+tanhLayer
 
-% convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
-% % maxPooling2dLayer([3 3])
-% tanhLayer()
+convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
+leakyReluLayer
 
-convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 2)
+convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
 leakyReluLayer('Name', 'LayersOut')
-
-%     convolution2dLayer([50, 50], 1,'Padding','same')
-%     leakyReluLayer()
-
-% fullyConnectedLayer(2,'WeightL2Factor',1)
 
 ];
 
 lgraph = layerGraph(layers);
 
 
-
-
 lgraph = lgraph.addLayers(preLayers);
 lgraph = lgraph.addLayers(postLayers);
-lgraph = lgraph.connectLayers('preLayersOut', 'LayersIn');
+lgraph = lgraph.connectLayers('pass_through_layer', 'LayersIn');
 lgraph = lgraph.connectLayers('LayersOut', 'postLayersIn');
 
 
@@ -82,7 +62,7 @@ numEpochs = 1000;
 miniBatchSize = 32;
 initialLearnRate = 1e-4;
 decay = 0.0001;
-momentum = 0.9;
+momentum = 0.95;
 
 
 figure(1)
@@ -175,9 +155,9 @@ end
 
 
 figure(1)
-alpha = -100;
+alpha = 150;
 newImg = img;
-for i = 1:3
+for i = 1:1
     %     jac = floor(jac*1000)/1000;
     newImg = newImg + alpha*jac;
     valNew = dlfeval(@modelGradientsJac, dlnet, newImg, dimInd);
