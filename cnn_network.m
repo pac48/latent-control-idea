@@ -17,24 +17,28 @@ preLayers = [
 
 postLayers = [
     convolution2dLayer([1,1], 1,'Padding','same', 'Stride', 1,'Name','postLayersIn')
-    averagePooling2dLayer([5,5], 'Padding','same')
+%     averagePooling2dLayer([5,5], 'Padding','same')
     flattenLayer
-    softmaxLayer
-    functionLayer(@(W) [XFlat*W; YFlat*W] )
+    tanhLayer
+    functionLayer(@(W) (W+1)./2)
+%     softmaxLayer
+%     functionLayer(@(W) [XFlat*W; YFlat*W] )
     ];
 
 layers = [
 % averagePooling2dLayer([3,3],'Padding','same','Name', 'LayersIn')
-convolution2dLayer([10,10], 8,'Padding','same', 'Stride', 1,'Name', 'LayersIn')
+tanhLayer('Name', 'LayersIn')
+
+convolution2dLayer([3,3], 32,'Padding','same', 'Stride', 1)
 tanhLayer
 
-convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
-tanhLayer
-
-convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
-leakyReluLayer
-
-convolution2dLayer([3,3], 8,'Padding','same', 'Stride', 1)
+% convolution2dLayer([3,3], 32,'Padding','same', 'Stride', 1)
+% tanhLayer
+% 
+% convolution2dLayer([3,3], 32,'Padding','same', 'Stride', 1)
+% tanhLayer
+% 
+% convolution2dLayer([3,3], 32,'Padding','same', 'Stride', 1)
 leakyReluLayer('Name', 'LayersOut')
 
 ];
@@ -59,8 +63,8 @@ global jac
 close all
 calcJac = false;
 numEpochs = 1000;
-miniBatchSize = 32;
-initialLearnRate = 1e-4;
+miniBatchSize = 4;
+initialLearnRate = 1e-8;
 decay = 0.0001;
 momentum = 0.95;
 
@@ -129,7 +133,7 @@ close all
 
 calcJac = true;
 jac = [];
-dimInd = 1;
+dimInd = 67*12 + 20;
 
 fdsTrain.reset()
 fdsTrain.shuffle()
@@ -155,13 +159,16 @@ end
 
 
 figure(1)
-alpha = 150;
+alpha = 1;
 newImg = img;
-for i = 1:1
+valNew = 0;
+while valNew < .41
     %     jac = floor(jac*1000)/1000;
-    newImg = newImg + alpha*jac;
+    newImg = newImg + 10*rand*alpha*jac;
+    newImg(newImg>1)=1;
+    newImg(newImg<0)=0;
     valNew = dlfeval(@modelGradientsJac, dlnet, newImg, dimInd);
-    valNew-val
+    valNew
 end
 subplot(1,3,1)
 imshow(extractdata(img))
