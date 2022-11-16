@@ -63,10 +63,10 @@ global jac
 close all
 calcJac = false;
 numEpochs = 1000;
-miniBatchSize = 4;
-initialLearnRate = 1e-8;
+miniBatchSize = 16;
+initialLearnRate = 5e-5;
 decay = 0.0001;
-momentum = 0.95;
+momentum = 0.9;
 
 
 figure(1)
