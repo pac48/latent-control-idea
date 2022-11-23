@@ -1,60 +1,60 @@
-% scene = Scene('model/model.dae');
-% 
-% num_targets = 1000;
-% ind = 0;
-% goal_pose = scene.meshes(3).transform(1:3,end);
-% 
-% for i = 1:num_targets
-% 
-% %     uncomment for more variation
-%     goal_pose = scene.meshes(3).transform(1:3,end);
-%     goal_pose(1:2) = 5*(rand(2,1)-.5);
-%     scene.meshes(3).transform(1:3,end) = goal_pose;
-% 
-% %     figure(1)
-%     im = render(scene);
-%     img = gather(im);
-%     img = imresize(img,.25);
-% %     imshow(img)
-% 
-%     data_point = struct('img', img, 'pos', goal_pose);
+scene = Scene('model/model.dae');
+
+num_targets = 1000;
+ind = 0;
+goal_pose = scene.meshes(3).transform(1:3,end);
+
+for i = 1:num_targets
+
+%     uncomment for more variation
+    goal_pose = scene.meshes(3).transform(1:3,end);
+    goal_pose(1:2) = 5*(rand(2,1)-.5);
+    scene.meshes(3).transform(1:3,end) = goal_pose;
+
+    figure(1)
+    im = render(scene);
+    img = gather(im);
+    img = imresize(img,1);
+    imshow(img)
+
+    data_point = struct('img', img, 'pos', goal_pose);
 %     save(fullfile('data', num2str(ind)),"data_point")
-% 
-%     ind = ind+1;
-%     continue
-% 
-%     cur_pose = scene.meshes(3).transform(1:3,end);
-%     cur_pose(1:2) = 5*(rand(2,1)-.5);
-%     scene.meshes(3).transform(1:3,end) = cur_pose;
-% 
-% 
-% 
-% 
-% 
-% 
-%     while norm(goal_pose-cur_pose) > .05
-%         ind = ind+1;
-%         tic
-%         cur_pose = scene.meshes(3).transform(1:3,end);
-%         new_pose = cur_pose + .2*(goal_pose-cur_pose);
-% 
-%         scene.meshes(3).transform(1:3,end) = new_pose ;
-% 
-% %         figure(2)
-%         im = render(scene);
-%         img = gather(im);
-%         img = imresize(img,.25);
-% %         imshow(img)
-%         drawnow
-%         toc
-% 
-%         data_point.cur = img;
-%         data_point.action = new_pose-cur_pose;
-% 
-%         save(fullfile('data', num2str(ind)),"data_point")
-% 
-%     end
-% end
+
+    ind = ind+1;
+    continue
+
+    cur_pose = scene.meshes(3).transform(1:3,end);
+    cur_pose(1:2) = 5*(rand(2,1)-.5);
+    scene.meshes(3).transform(1:3,end) = cur_pose;
+
+
+
+
+
+
+    while norm(goal_pose-cur_pose) > .05
+        ind = ind+1;
+        tic
+        cur_pose = scene.meshes(3).transform(1:3,end);
+        new_pose = cur_pose + .2*(goal_pose-cur_pose);
+
+        scene.meshes(3).transform(1:3,end) = new_pose ;
+
+%         figure(2)
+        im = render(scene);
+        img = gather(im);
+        img = imresize(img,.25);
+%         imshow(img)
+        drawnow
+        toc
+
+        data_point.cur = img;
+        data_point.action = new_pose-cur_pose;
+
+        save(fullfile('data', num2str(ind)),"data_point")
+
+    end
+end
 
 %% define network
 close all
