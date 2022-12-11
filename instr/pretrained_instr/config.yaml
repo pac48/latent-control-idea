@@ -1,0 +1,40 @@
+EXP:
+  NAME: instr
+  ROOT: output
+
+DATA:
+  NUM_WORKERS: 4
+  TEST:
+    BATCH_SIZE: 2
+    ROOT: ""
+    TRANSFORMS: false
+  TRAIN:
+    BATCH_SIZE: 2
+    ROOT: ""
+    TRANSFORMS: true
+  VAL:
+    BATCH_SIZE: 2
+    ROOT: ""
+    TRANSFORMS: false
+
+MODEL:
+  NUM_QUERIES: 15
+  AUX_DECODER_LOSS: True
+  WITH_DISP: True
+  AXIAL_ATTENTION: True
+  QUERY_PROC: expanded  # expanded, att, attcat_tfenc, attcat_bb
+
+LOSS:
+  POWER: 0.2
+  POS_WEIGHT: 1.
+  NEG_WEIGHT: 1.
+
+OPTIMIZER:
+  LR: 0.0001
+  TYPE: optim.AdamW
+  WEIGHT_DECAY: 0.01
+
+SCHEDULER:
+  TYPE: optim.lr_scheduler.StepLR
+  gamma: 0.5
+  step_size: 10
