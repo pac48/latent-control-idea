@@ -4,6 +4,7 @@ package MatlabPython;
 enum Type {
   FLOAT64 = 0;
   INT32 = 1;
+  UINT8 = 2;
 }
 
 message Numpy {

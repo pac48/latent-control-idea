@@ -1,0 +1,38 @@
+classdef Instr < handle
+    % Dense Pose  wrapper
+
+    properties
+    end
+    properties(Access=private)
+        server
+    end
+
+    methods
+        function obj = Instr()
+            obj.server = ZMQ_Server(5555, 10, 'numpy');
+
+
+        end
+
+
+
+        function segments = predict(obj, left_image, right_image)
+            img = cat(2,left_image, right_image);
+            img = img(:,:,[3 2 1]);
+            double(obj.server.recv());
+        end
+
+        function out = blockRecv(obj, img)
+            obj.server.send(img);
+            while ~obj.server.hasNewMsg()
+            end
+            out = obj.server.recv();
+        end
+        function out = sendTest(obj, img)
+            obj.server.send(img);
+            while ~obj.server.hasNewMsg()
+            end
+            out = obj.server.recv();
+        end
+    end
+end

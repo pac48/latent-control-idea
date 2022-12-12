@@ -20,7 +20,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   syntax='proto3',
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\nmsgs.proto\x12\x0cMatlabPython\"W\n\x05Numpy\x12\x10\n\x08num_dims\x18\x01 \x01(\x05\x12\x0c\n\x04\x64ims\x18\x02 \x03(\x05\x12 \n\x04type\x18\x03 \x01(\x0e\x32\x12.MatlabPython.Type\x12\x0c\n\x04\x64\x61ta\x18\x04 \x01(\x0c*\x1e\n\x04Type\x12\x0b\n\x07\x46LOAT64\x10\x00\x12\t\n\x05INT32\x10\x01\x62\x06proto3'
+  serialized_pb=b'\n\nmsgs.proto\x12\x0cMatlabPython\"W\n\x05Numpy\x12\x10\n\x08num_dims\x18\x01 \x01(\x05\x12\x0c\n\x04\x64ims\x18\x02 \x03(\x05\x12 \n\x04type\x18\x03 \x01(\x0e\x32\x12.MatlabPython.Type\x12\x0c\n\x04\x64\x61ta\x18\x04 \x01(\x0c*)\n\x04Type\x12\x0b\n\x07\x46LOAT64\x10\x00\x12\t\n\x05INT32\x10\x01\x12\t\n\x05UINT8\x10\x02\x62\x06proto3'
 )
 
 _TYPE = _descriptor.EnumDescriptor(
@@ -40,17 +40,23 @@ _TYPE = _descriptor.EnumDescriptor(
       serialized_options=None,
       type=None,
       create_key=_descriptor._internal_create_key),
+    _descriptor.EnumValueDescriptor(
+      name='UINT8', index=2, number=2,
+      serialized_options=None,
+      type=None,
+      create_key=_descriptor._internal_create_key),
   ],
   containing_type=None,
   serialized_options=None,
   serialized_start=117,
-  serialized_end=147,
+  serialized_end=158,
 )
 _sym_db.RegisterEnumDescriptor(_TYPE)
 
 Type = enum_type_wrapper.EnumTypeWrapper(_TYPE)
 FLOAT64 = 0
 INT32 = 1
+UINT8 = 2
 
 
 

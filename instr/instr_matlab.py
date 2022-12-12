@@ -4,6 +4,8 @@ Demo script.
 
 import os
 import argparse
+import time
+
 import cv2
 import torch
 import numpy as np
@@ -13,6 +15,9 @@ import torch.utils.model_zoo as model_zoo
 import torch.onnx
 
 import pyzed.sl as sl
+from ZMQ_server import ZMQServer
+
+
 # export PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python
 
 class Camera:
@@ -146,9 +151,32 @@ def predict(left_image, right_image):
     return torch.from_numpy(pred_segmap).unsqueeze(0)
 
 
-load_model('/home/paul/Downloads/instr/pretrained_instr/models/pretrained_model.pth')
-
 if __name__ == '__main__':
-    demo()
+    # load net
+
+    server = ZMQServer(5555, 'instr')
+    state_dict = './pretrained_instr/models/pretrained_model.pth'
+    focal_length = 1390.0277099609375 / (2208 / 640)
+    baseline = 0.12
+    net = Predictor(state_dict_path=state_dict, focal_length=focal_length, baseline=baseline, return_depth=True)
+
+    while True:
+        arr = server.recv()
+        left = arr[:, :int(arr.shape[1] / 2), :]
+        right = arr[:, int(arr.shape[1] / 2):, :]
+        # cv2.imshow('left', cv2.resize(left.copy(), (640, 480), interpolation=cv2.INTER_LINEAR))
+        # cv2.imshow('right', cv2.resize(right.copy(), (640, 480), interpolation=cv2.INTER_LINEAR))
+        # cv2.waitKey(1)
+
+        with torch.no_grad():
+            pred_segmap, pred_depth = net.predict(left, right)
+            print("predicted!")
+
+        # arr = net.colorize_preds(torch.from_numpy(pred_segmap).unsqueeze(0))
+        server.send(pred_segmap)
+
+
+    # load_model('/home/paul/Downloads/instr/pretrained_instr/models/pretrained_model.pth')
+    # demo()
     # load_model('/home/paul/Downloads/instr/pretrained_instr/models/pretrained_model.pth')
     # load_model('/home/paul/Downloads/instr/pretrained_instr/models/pretrained_model22.pth')

@@ -1,6 +1,6 @@
 import numpy as np
 import zmq
-from proto.msgs_pb2 import FLOAT64, INT32
+from proto.msgs_pb2 import FLOAT64, INT32, UINT8
 from proto.msgs_pb2 import Numpy as NumpyMsg
 
 
@@ -33,6 +33,8 @@ class ZMQServer:
             arr = np.frombuffer(msg.data, dtype=np.float)
         elif msg.type == INT32:
             arr = np.frombuffer(msg.data, dtype=np.int32)
+        elif msg.type == UINT8:
+            arr = np.frombuffer(msg.data, dtype=np.uint8)
         else:
             raise NotImplementedError
 
@@ -47,16 +49,25 @@ class ZMQServer:
         """
         self.send_socket.send_string(self.topic, zmq.SNDMORE)
         msg = NumpyMsg()
-        msg.data = arr.tobytes()
         for d in arr.shape:
             msg.dims.append(d)
+        msg.dims.reverse()
         msg.num_dims = len(arr.shape)
         if arr.dtype == np.float64:
             msg.type = FLOAT64
+        elif arr.dtype == np.float32:
+            arr = np.array(arr, dtype=np.float64)
+            msg.type = FLOAT64
         elif arr.dtype == np.int32:
             msg.type = INT32
+        elif arr.dtype == np.uint8:
+            msg.type = UINT8
+        elif arr.dtype == np.int64:
+            msg.type = INT32
+            arr = np.array(arr, dtype=np.int32)
         else:
             raise NotImplementedError
 
-        self.send_socket.send(msg.SerializeToString())
+        msg.data = arr.tobytes()
 
+        self.send_socket.send(msg.SerializeToString())
