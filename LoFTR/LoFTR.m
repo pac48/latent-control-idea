@@ -17,9 +17,15 @@ classdef LoFTR < handle
         function [mkpts0, mkpts1, mconf] = predict(obj, image0, image1)
             img = cat(3, rgb2gray(image1), rgb2gray(image0));
             out = double(obj.blockRecv(img));
-            mkpts0 = out(:, 1:2);
-            mkpts1 = out(:,3:4);
-            mconf= out(:,5);
+            if ~isempty(out)
+                mkpts0 = out(:, 1:2);
+                mkpts1 = out(:,3:4);
+                mconf= out(:,5);
+            else
+                mkpts0 = [];
+                mkpts1 = [];
+                mconf = [];
+            end
         end
 
         function out = blockRecv(obj, img)

@@ -1,0 +1,28 @@
+classdef Nerf < handle
+    % Nerf wrapper
+
+    properties(Access=private)
+        nerfObjs
+        nameMap
+    end
+
+    methods
+        function obj = Nerf(names)
+            nameMap = containers.Map('KeyType', 'char', 'ValueType', 'any');
+            for i = 1:length(names)
+                name = names{i};
+                obj.nerfObjs{i} = NerfObject(name);
+                nameMap(name) = obj.nerfObjs(i);
+            end
+
+            function [img, depth] = render(obj)
+                
+renderNonBlock()
+
+                [img, depth] = obj.blockUntilResp();
+            end
+
+        end
+
+    end
+end
