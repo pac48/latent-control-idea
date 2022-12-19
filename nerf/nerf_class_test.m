@@ -1,16 +1,22 @@
 close all
 clear all
-nerf = Nerf({'nerf_background', 'nerf_box', 'nerf_cup'});
+% nerf = Nerf({'nerf_background', 'nerf_box', 'nerf_cup'});
+% nerf = Nerf({'nerf_box'});
+nerf = Nerf({'nerf_box', 'nerf_cup'});
 
 %%
-while 1
+for i =1:500
     tic
-    [box, cup] = nerf.render('nerf_box','nerf_cup');
-    subplot(1,2,1)
-    imshow(box(:,:,4))
-    subplot(1,2,2)
-    imshow(cup(:,:,4))
-    drawnow
+    out = nerf.renderObject(640/2, 480/2, 70, 'nerf_box','nerf_cup');
 
+    %     box = nerf.renderObject(640/2, 480/2, 'nerf_box');
+    %     cup = nerf.renderObject(640/2, 480/2, 'nerf_cup');
     toc
+    %     subplot(1,2,1)
+    %     imshow(box(:,:,1:3))
+    %     subplot(1,2,2)
+    %     imshow(cup(:,:,1:3))
+    %     drawnow
+
+
 end

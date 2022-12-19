@@ -10,9 +10,11 @@ clear all
 % server1 = ZMQ_Server(5559, 100, 'nerf_box');
 % server2 = ZMQ_Server(5561, 100, 'nerf_cup');
 % server3 = ZMQ_Server(5563, 100, 'nerf_background');
-nerfBackground = Nerf('nerf_background');
-nerfBox = Nerf('nerf_box');
-nerfCup = Nerf('nerf_cup');
+% nerfBackground = Nerf('nerf_background');
+% nerfBox = Nerf('nerf_box');
+% nerfCup = Nerf('nerf_cup');
+
+nerf = Nerf({'nerf_box', 'nerf_cup', 'nerf_background'});
 
 %% background
 % T3 = [0.2307445729283194, -0.32225770448710866, 0.918099620866566, 3.8365932351831096-3
@@ -44,12 +46,14 @@ nerfCup = Nerf('nerf_cup');
 % T3 = eye(4);
 % T3(1:3, 1:3) = R;
 % T3(1:3, end) = p;
-s = jsondecode(fileread('background.json'));
-T3 = s.transform_matrix;
-nerfBackground.setTransform(T3);
-[backgroundImg, backgroundDepth] = nerfBackground.render();
-backgroundImg = imresize(backgroundImg, [240, 320]);
-backgroundDepth = imresize(backgroundDepth, [240, 320]);
+% s = jsondecode(fileread('background.json'));
+% T3 = s.transform_matrix;
+allT = nerf.name2Frame('nerf_background');
+% for i = 1:length(allT)
+T3 = allT{14};
+
+nerf.setTransform({'nerf_background', T3});
+[backgroundImg, backgroundDepth]= nerf.renderObject(240, 320, 70, 'nerf_background');
 
 subplot(1,2,1)
 imshow(backgroundImg)
@@ -57,6 +61,8 @@ subplot(1,2,2)
 imagesc(backgroundDepth)
 clims = [min(backgroundDepth,[],'all') max(backgroundDepth,[],'all')];
 clim(clims)
+drawnow
+% end
 %% render
 % v = VideoWriter('newfile.avi','Motion JPEG AVI');
 % v.Quality = 95;
@@ -98,11 +104,11 @@ while 1
     %     tmp = tmp*T2Full;
     %     T2 = tmp(1:3, :);
 
-    nerfBox.setTransform(T1);
-    nerfBox.renderNonBlock();
-    nerfCup.setTransform(T2);
-    nerfCup.renderNonBlock();
-
+%     T1 = eye(4);
+%     T2 = eye(4);
+    nerf.setTransform({'nerf_box', T1});
+    nerf.setTransform({'nerf_cup', T2});
+    
     %     img1 = [];
     %     img2 = [];
     %     while isempty(img1) || isempty(img2)
@@ -113,14 +119,15 @@ while 1
     %             img2 = server2.recv();
     %         end
     %     end
+    fov = 70 + 10*sin(toc);
+%     [backgroundImg, backgroundDepth]= nerf.renderObject(240, 320, fov, 'nerf_background');
+    [boxImg, boxDepth, cupImg, cupDepth] = nerf.renderObject(240, 320, fov, 'nerf_box','nerf_cup');
+%     [cupImg, cupDepth] = nerfCup.blockUntilResp();
 
-    [boxImg, boxDepth] = nerfBox.blockUntilResp();
-    [cupImg, cupDepth] = nerfCup.blockUntilResp();
-
-    [boxImg, box_background_ind] = removeBackground(boxImg);
-    boxDepth = boxDepth.*box_background_ind;
-    [cupImg, cup_background_ind] = removeBackground(cupImg);
-    cupDepth = cupDepth.*cup_background_ind;
+%     [boxImg, box_background_ind] = removeBackground(boxImg);
+%     boxDepth = boxDepth.*box_background_ind;
+%     [cupImg, cup_background_ind] = removeBackground(cupImg);
+%     cupDepth = cupDepth.*cup_background_ind;
 
     %     img = boxImg + cupImg;
     %     depth = cupDepth + boxDepth;
@@ -130,14 +137,16 @@ while 1
     %     low = 0.1;
     %     high = 1.0;
     %     img = imadjust(img,[low high],[]); % I is double
-    boxImg = colorAdjust(boxImg);
-    cupImg = colorAdjust(cupImg);
+%     boxImg = colorAdjust(boxImg);
+%     cupImg = colorAdjust(cupImg);
 
     subplot(1,2,1)
     hold off
     image(backgroundImg);
     hold on
+    box_background_ind = boxDepth ~= 0;
     image(boxImg, 'AlphaData', box_background_ind)
+    cup_background_ind = cupDepth ~= 0;
     image(cupImg, 'AlphaData', cup_background_ind)
     axis equal
 

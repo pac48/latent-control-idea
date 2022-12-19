@@ -17,7 +17,7 @@ classdef NerfObject < handle
                 {'nerf_box', 'nerf_cup', 'nerf_background'}, ...
                 { 5559, 5561, 5563});
             port = map(name);
-            obj.server = ZMQ_Server(port, 10, name);
+            obj.server = ZMQ_Server(port, 1, name);
             pause(.5)
             obj.T = eye(4);
             obj.testConnection();
@@ -28,25 +28,39 @@ classdef NerfObject < handle
             obj.T = T;
         end
 
-        function [img, depth] = render(obj)
-            obj.renderNonBlock();
+        function [img, depth] = render(obj, w, h, fov_x)
+            obj.renderNonBlock(w, h, fov_x);
             [img, depth] = obj.blockUntilResp();
         end
 
-        function renderNonBlock(obj)
-            obj.server.send(obj.T(1:3,:));
+        function renderNonBlock(obj, h, w, fov_x)
+            out = obj.server.recv();
+            arr = cat(1, reshape(obj.T(1:3,:)',[], 1), w, h, fov_x);
+            obj.server.send(arr);
         end
 
         function [img, depth] = blockUntilResp(obj)
-            while ~obj.server.hasNewMsg()
+            %             ind = 0;
+%             while ~obj.server.hasNewMsg()
+                %                 ind = ind+1;
+%             end
+
+            out = [];
+            while isempty(out)
+                out = obj.server.recv();
             end
-            out = obj.server.recv();
+            
+%             if ~isempty(obj.server.recv())
+%                 keyboard
+%             end
+            %             depth = 1;
+            %             img = 1;
             depth = out(:,:,5);
             img = out(:,:,1:3);
         end
 
         function testConnection(obj)
-            obj.render();
+            obj.render(20, 20, 70);
         end
     end
 end
