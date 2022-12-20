@@ -27,8 +27,8 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
             X = points(1,:,:);
             Y = points(2,:,:);
             Z = points(3,:,:);
-            x = layer.f*X./Z;
-            y = layer.f*Y./Z;
+            x = -layer.f*X./Z;
+            y = -layer.f*Y./Z;
 
 
             out = cat(1, x, y);

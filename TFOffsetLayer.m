@@ -42,7 +42,7 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable
             % X: xyz rpy (6 x batch) this is transform from world to camera
             % coordinates
             % Z: transform matrix (16 x batch)
-            X = [.1; .1; .1; .1*0; .1*0; .1*0].*X;
+            X = [.1; .1; .1; .01; .01; .01].*X;
             T = layer.getT(X(4:6, :), X(1:3, :));
             T = pagemtimes(reshape(T,4,4,[]), layer.T0);
 
@@ -54,11 +54,12 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable
             Z = reshape(T, 16, []);
             Z = dlarray(Z, 'CB');
         end
+% % 
+%         function [dLdX] = backward(layer, X, ~, dLdZ, ~)
+% 
+%             dLdX = X*0;
+% 
+%         end
 
-        %                 function [dLdX] = backward(layer, X, ~, dLdZ, ~)
-        %
-        %                   dLdX = X*0;
-        %
-        %                 end
     end
 end

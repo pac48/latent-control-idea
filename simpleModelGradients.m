@@ -18,6 +18,8 @@ loss = double(loss);
 hold off
 x = cat(1, nerfPoints2D(1,:), realPoints2D(1,:));
 y = cat(1, nerfPoints2D(2,:), realPoints2D(2,:));
-plot(x,y)
+plot(x,y) 
+hold on
+plot(realPoints2D(1,:), realPoints2D(2,:),'LineStyle','none', 'Marker','.', 'MarkerSize',8)
 drawnow
 end

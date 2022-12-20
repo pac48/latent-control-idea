@@ -11,12 +11,16 @@ imageSize = [240, 320];
 [allT, allNames] = nerf.name2Frame('nerf_background');
 i = 4;
 T0 =  allT{i};
-% T0(1:3,end) = T0(1:3,end) + T0(1:3, 2);
 T0(1:3,end) = T0(1:3,end) + T0(1:3, 1);
-% T0(1:3, 1:3) = T0(1:3, 1:3)*eul2rotm([pi/12 0 0]);
+% T0(1:3,end) = T0(1:3,end) + T0(1:3, 2);
+% T0(1:3,end) = T0(1:3,end) + 1*T0(1:3, 3);
+
+T0(1:3, 1:3) = T0(1:3, 1:3)*eul2rotm([pi/12 0 0]);
 % T0(1:3, 1:3) = T0(1:3, 1:3)*eul2rotm([0 pi/12 0]);
 % T0(1:3, 1:3) = T0(1:3, 1:3)*eul2rotm([0 0 pi/12]);
-T0 = inv(T0); % world to cam
+
+
+% T0 = inv(T0); % world to cam
 
 % T0(1:3,end) = T0(1:3,end) + [0;1;0];
 % T0(1:3,end) = T0(1:3,end) + [1; 0; 0];
@@ -56,12 +60,14 @@ nerfLayers = [
     ];
 
 inputLayer = imageInputLayer([imageSize 3],'name','image_input', 'Normalization','none');
-
+inverseLayer = InvLayer();
 
 lgraph = layerGraph(nerfLayers);
 lgraph = lgraph.addLayers(inputLayer);
+lgraph = lgraph.addLayers(inverseLayer);
 lgraph = lgraph.connectLayers('image_input', 'NerfLayer/in2');
-lgraph = lgraph.connectLayers('TFOffsetLayer', 'TFLayer/in2');
+lgraph = lgraph.connectLayers('TFOffsetLayer', 'InvLayer');
+lgraph = lgraph.connectLayers('InvLayer', 'TFLayer/in2');
 
 dlnet = dlnetwork(lgraph);
 
@@ -72,11 +78,15 @@ feature = dlarray(2, 'CB');
 
 x = cat(1, nerfPoints2D(1,:), realPoints2D(1,:));
 y = cat(1, nerfPoints2D(2,:), realPoints2D(2,:));
+hold off
 plot(x,y)
+hold on
+plot(realPoints2D(1,:), realPoints2D(2,:),'LineStyle','none', 'Marker','.', 'MarkerSize', 8)
+
 %% train
-initialLearnRate = 1e-2;
+initialLearnRate = 1e-1;
 decay = 0.0001;
-momentum = 0.3;
+momentum = 0.9;
 velocity = [];
 iteration = 0;
 

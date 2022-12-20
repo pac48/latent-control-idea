@@ -38,7 +38,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             X = double(gather(extractdata(X)));
             imReal = double(gather(extractdata(Y)));
 
-            T = inv(reshape(X, 4, 4)); % cam to world
+            %             T = inv(reshape(X, 4, 4)); % cam to world
+            T = reshape(X, 4, 4); % cam to world
             for i  = 1:length(layer.objNames)
                 layer.nerf.setTransform({layer.objNames{i}, T})
                 [img, depth] = layer.nerf.renderObject(layer.h, layer.w, layer.fov, layer.objNames{i});
@@ -55,6 +56,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
                 return
             end
 
+            %             mkptsReal(:,2) = layer.h - mkptsReal(:,2);
+            %             mkptsNerf(:,2) = layer.h - mkptsNerf(:,2);
+
             inds = floor(mkptsNerf);
             inds = (inds(:,1,: )-1)*layer.h + inds(:,2,:);
             goodInds = depth(inds) ~= 0;
@@ -63,9 +67,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             %             inds = (1:numel(depth))';
             d = depth(inds);
 
-            [X,Y] = meshgrid(linspace(-.5, .5,layer.w),linspace(-.5,.5,layer.h));
+            [X,Y] = meshgrid(linspace(-.5, .5, layer.w), linspace(-.5,.5,layer.h));
             xPix = X(inds);
-            yPix = Y(inds);
+            yPix = -Y(inds);
 
             fl = 1;
             fx = fl*2*tand(layer.fov/2);
@@ -73,14 +77,17 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             xDir =  fx*xPix;
             yDir =  fy*yPix;
-            zDir = fl*ones(size(yDir));
+            zDir = -fl*ones(size(yDir));
             vec = [xDir yDir zDir];
             vec = vec./sqrt(sum(vec.^2, 2));
             points = vec.*d;
             points = points';  % camera coordinates
 
+            %             Tinv = inv(T);
             points = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :); % world coordinates
 
+
+            %             figure
             %             cData = permute(img, [3 1 2]);
             %             cData = reshape(cData, 3,[])';
             %             scatter3(points(1, :), points(2, :), points(3, :), 'CData', cData)
@@ -90,17 +97,20 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             %             imagesc(depth)
             % imshow(img)
             %             hold on
-            %     px = [mkptsNerf(:,1) mkptsNerf(:,1)];
-            %     py =  [mkptsNerf(:,2) mkptsNerf(:,2)];
-            %     plot(px', py', Marker='.');
-%             %
-%                                     figure
-%                                     plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
+            %                 px = [mkptsNerf(:,1) mkptsNerf(:,1)];
+            %                 py =  [mkptsNerf(:,2) mkptsNerf(:,2)];
+            %                 plot(px', py', Marker='.');
+
+
+            mkptsNerf = [mkptsNerf(goodInds,1) mkptsNerf(goodInds,2)];
+            mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
+% 
+            figure
+            plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
 
             Z1 = dlarray(points, 'SSB');
             offset = [layer.w layer.h];
-            mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
-            mkptsRealNormalized = [fx fy].*(mkptsReal - .5*offset)./offset;
+            mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
             Z2 = dlarray(mkptsRealNormalized','SSB');
 
         end
@@ -118,9 +128,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             %                    input data
             %         dLdAlpha - Derivative of the loss with respect to the
             %                    learnable parameter Alpha
-
-          dLdX = X*0;
-          dLdY = Y*0;
+            %            error('not called normally')
+            dLdX = X*0;
+            dLdY = Y*0;
         end
     end
 end

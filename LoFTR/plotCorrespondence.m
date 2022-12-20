@@ -8,6 +8,6 @@ function plotCorrespondence(img0, img1, mkpts0, mkpts1, mconf)
     
     px = [mkpts0(:,1) mkpts1(:,1)];
     py = [mkpts0(:,2) mkpts1(:,2)];
-    pz = [mkpts1(:,2)*0+1.1 mkpts1(:,2)*0-1];
+    pz = [mkpts1(:,2)*0-1 mkpts1(:,2)*0+1.1];
     plot3(px', py', pz',LineWidth=2);
 end
