@@ -5,11 +5,11 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
     end
 
     methods
-        function layer = ProjectionLayer()
+        function layer = ProjectionLayer(name)
             % Create a TFLayer.
 
             % Set layer name.
-            layer.Name = 'ProjectionLayer';
+            layer.Name = name;%'ProjectionLayer';
             % Set layer description.
             layer.Description = "Project 3D point in camera coordinates to pixel coordinates";
 

@@ -9,11 +9,11 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
     end
 
     methods
-        function layer = NerfLayer(nerf, loftr, objNames, h, w, fov)
+        function layer = NerfLayer(name, nerf, loftr, objNames, h, w, fov)
             % Create a TFLayer.
 
             % Set layer name.
-            layer.Name = 'NerfLayer';
+            layer.Name = name;%'NerfLayer';
             % Set layer description.
             layer.Description = "Render image given camera xyz rpy and then extract 2D keypoints.";
 
@@ -38,8 +38,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             X = double(gather(extractdata(X)));
             imReal = double(gather(extractdata(Y)));
 
-            %             T = inv(reshape(X, 4, 4)); % cam to world
-            T = reshape(X, 4, 4); % cam to world
+            T = inv(reshape(X, 4, 4)); % cam to world
+            %             T = reshape(X, 4, 4); % cam to world
             for i  = 1:length(layer.objNames)
                 layer.nerf.setTransform({layer.objNames{i}, T})
                 [img, depth] = layer.nerf.renderObject(layer.h, layer.w, layer.fov, layer.objNames{i});
@@ -50,6 +50,10 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             imReal = uint8(255*imReal);
             [mkptsReal, mkptsNerf, mconf] = layer.loftr.predict(imReal, imgNerf);
             if isempty(mkptsReal)
+                subplot(1,2,1)
+                imshow(imReal)
+                subplot(1,2,2)
+                imshow(imgNerf)
                 warning('bad')
                 Z1 = dlarray(ones(3,1, 1), 'SSB');
                 Z2 = dlarray(ones(2,1,1),'SSB');
@@ -88,13 +92,20 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
 
 
             %             figure
+            %             imgR = img(:,:,1);
+            %             imgG = img(:,:,2);
+            %             imgB = img(:,:,3);
+            %             imgR = imgR(inds);
+            %             imgG = imgG(inds);
+            %             imgB = imgB(inds);
+            %             img = cat(3, imgR, imgG, imgB);
             %             cData = permute(img, [3 1 2]);
-            %             cData = reshape(cData, 3,[])';
+            %             cData = reshape(cData, 3, [])';
             %             scatter3(points(1, :), points(2, :), points(3, :), 'CData', cData)
             %             axis equal
 
-            %             close all
-            %             imagesc(depth)
+            %                         close all
+            %                         imagesc(depth)
             % imshow(img)
             %             hold on
             %                 px = [mkptsNerf(:,1) mkptsNerf(:,1)];
@@ -104,9 +115,11 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             mkptsNerf = [mkptsNerf(goodInds,1) mkptsNerf(goodInds,2)];
             mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
-% 
-%             figure
-%             plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
+
+            hold off
+            subplot(1,1,1)
+            plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
+            drawnow
 
             Z1 = dlarray(points, 'SSB');
             offset = [layer.w layer.h];
