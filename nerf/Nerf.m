@@ -6,6 +6,7 @@ classdef Nerf < handle
         nameMap
         name2FrameMap
         name2FileMap
+        objects_file_path
     end
     properties
         names
@@ -42,7 +43,8 @@ classdef Nerf < handle
             tmp = arrayfun(@(x) x.name, tmp, 'UniformOutput', false);
             inds = cellfun(@(x) ~strcmp(x, '..') && ~strcmp(x, '.'), tmp);
             objNames = tmp(inds);
-            paths = cellfun(@(x) fullfile(current_file_path, 'objects', x, 'transforms.json'), objNames);
+            obj.objects_file_path = fullfile(current_file_path, 'objects');
+            paths = cellfun(@(x) fullfile(obj.objects_file_path, x, 'transforms.json'), objNames);
             tmp = cellfun(@(x) jsondecode(fileread(x)).frames, paths, 'UniformOutput', false);
             frames = cellfun(@(x) arrayfun(@(y) y.transform_matrix, x, 'UniformOutput', false)  , tmp  , 'UniformOutput'  , false);
 
@@ -52,7 +54,7 @@ classdef Nerf < handle
             end
             files = cellfun(@(x) arrayfun(@(y) stripPath(y.file_path), x, 'UniformOutput', false)  , tmp  , 'UniformOutput'  , false);
 
-            keys = cellfun(@(x) ['nerf_' x], objNames, 'UniformOutput', false);
+            keys = cellfun(@(x) x, objNames, 'UniformOutput', false);
             obj.name2FileMap  = containers.Map(keys , files);
             obj.name2FrameMap = containers.Map(keys , frames);
 
@@ -73,9 +75,10 @@ classdef Nerf < handle
             end
         end
 
-        function [allT, allNames] = name2Frame(obj, name)
+        function [allT, allImgs] = name2Frame(obj, name)
             allT = obj.name2FrameMap(name);
             allNames = obj.name2FileMap(name);
+            allImgs = cellfun(@(x) imread(fullfile(obj.objects_file_path{1}, name, x{1})), allNames, 'UniformOutput', false);
         end
 
         function [imgRender, imDepth] = render(obj, w, h, fov_x)

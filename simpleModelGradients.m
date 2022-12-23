@@ -1,13 +1,13 @@
-function [loss,gradients, state] = simpleModelGradients(dlnet, feature, img)
+function [loss,gradients, state] = simpleModelGradients(dlnet, img)
 % X: real scene image
 
-[realPoints2D, nerfPoints2D, state] = dlnet.forward(feature, img);
+[realPoints2D, nerfPoints2D, state] = dlnet.forward(img);
 % inds = extractdata(isfinite(nerfPoints2D) & isfinite(realPoints2D));
 realPoints2D = dlarray(gather(extractdata(realPoints2D)), 'SSB');
 
 loss = sum( (nerfPoints2D - realPoints2D).^2, 'all');
-loss = 1000*loss./numel(realPoints2D);
-if numel(realPoints2D) < 20
+loss = loss./size(realPoints2D,2);
+if numel(realPoints2D) < 2
     loss = 0*loss;
 end
 

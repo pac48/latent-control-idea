@@ -4,7 +4,7 @@ function [loss,gradients,state] = modelGradients(net, X, mkptsReal)
 [mkptsNerf, state] = forward(net, X);
 
 loss = sum((mkptsReal - mkptsNerf).^2, 'all');
-gradients = dlgradient(loss,net.Learnables);
+gradients = dlgradient(loss, net.Learnables);
 loss = double(loss);
 
 end

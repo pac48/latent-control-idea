@@ -3,18 +3,21 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable
         T0
     end
     methods
-        function layer = TFOffsetLayer(T0)
+        function layer = TFOffsetLayer()
             % Create a TFLayer.
 
             % Set layer name.
             layer.Name = 'TFOffsetLayer';
+            
+            layer.InputNames = {'in1', 'in2'};
+
             % Set layer description.
             layer.Description = "apply constant transform to input";
 
             % Set layer type.
             layer.Type = "TFOffsetLayer";
 
-            layer.T0 = T0;
+%             layer.T0 = T0;
 
         end
 
@@ -38,13 +41,15 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable
             T = [R11; R21; R31; 0; R12; R22; R32; 0; R13; R23; R33; 0; p(1); p(2); p(3); 1];
         end
 
-        function Z = predict(layer, X)
+        function Z = predict(layer, X, T0)
             % X: xyz rpy (6 x batch) this is transform from world to camera
             % coordinates
             % Z: transform matrix (16 x batch)
-            X = [.1; .1; .1; .01; .01; .01].*X;
+            X = [.01; .01; .01; .01; .01; .01].*X;
             T = layer.getT(X(4:6, :), X(1:3, :));
-            T = pagemtimes(reshape(T,4,4,[]), layer.T0);
+            T = reshape(T,4,4,[]);
+            T0 = reshape(T0,4,4,[]);
+            T = pagemtimes(T, T0);
 
             %             T = [X(1) X(2) X(3) X(4)
             %                 X(5) X(6) X(7) X(8)

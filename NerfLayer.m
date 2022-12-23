@@ -47,7 +47,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             % call LoFTR to get 2D points
             imgNerf = uint8(255*img);
-            imReal = uint8(imReal);
+            imReal = uint8(255*imReal);
             [mkptsReal, mkptsNerf, mconf] = layer.loftr.predict(imReal, imgNerf);
             if isempty(mkptsReal)
                 warning('bad')
@@ -105,8 +105,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable
             mkptsNerf = [mkptsNerf(goodInds,1) mkptsNerf(goodInds,2)];
             mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
 % 
-            figure
-            plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
+%             figure
+%             plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
 
             Z1 = dlarray(points, 'SSB');
             offset = [layer.w layer.h];
