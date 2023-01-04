@@ -20,7 +20,7 @@ classdef ConstLayer < nnet.layer.Layer & nnet.layer.Formattable
         end
 
         function Z = predict(layer, X)
-            Z = dlarray(layer.w, 'SB');
+            Z = dlarray(layer.w, 'SCB');
         end
 
     end

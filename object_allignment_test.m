@@ -1,12 +1,19 @@
+
 close all
 clear all
 
 addpath('LoFTR/')
+addpath('SuperGlue/')
 addpath('nerf/')
 addpath('utils/')
+addpath('utils/ransac2d/')
 
 loftr = LoFTR();
+% loftr = SuperGlue();
 nerf = Nerf({'nerf_background', 'nerf_box', 'nerf_cup'});
+numBackgroundTransforms = length(nerf.name2Frame('nerf_background'));
+numBoxTransforms = length(nerf.name2Frame('nerf_box'));
+numCupTransforms = length(nerf.name2Frame('nerf_cup'));
 
 w = 320*2;
 h = 240*2;
@@ -61,6 +68,7 @@ featurePreLayers = [...
     ];
 
 featurePostLayers = [...
+    convolution2dLayer([3 3], 1, 'Stride', 3, 'Name','featurePostLayerIn')
     functionLayer(@(x) dlarray(sin(2000*reshape(x, [], size(x,4))), 'CB'), 'Name','featurePostLayer', 'Formattable',true)
     ];
 
@@ -74,7 +82,7 @@ lgraph = lgraph.removeLayers('data');
 lgraph = lgraph.addLayers(featurePreLayers);
 lgraph = lgraph.connectLayers('resize', 'conv1');
 lgraph = lgraph.addLayers(featurePostLayers);
-lgraph = lgraph.connectLayers(lgraph.Layers(end-3,:).Name, 'featurePostLayer');
+lgraph = lgraph.connectLayers(lgraph.Layers(end-4,:).Name, 'featurePostLayerIn');
 
 featureNet = dlnetwork(lgraph);
 
@@ -107,7 +115,7 @@ featureNet = dlnetwork(lgraph);
 % lgraph = lgraphOld;
 lgraph = featureNet.layerGraph;
 
-backgroundConstLayers = ConstLayer('background_xyz_rpy', [6 1]);
+backgroundConstLayers = ConstLayer('background_xyz_rpy', [6 numBackgroundTransforms]);
 lgraph = lgraph.addLayers(backgroundConstLayers);
 lgraph = lgraph.connectLayers('image_input', backgroundConstLayers.Name);
 
@@ -120,15 +128,24 @@ lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_background'}, ima
     name_prefix, image_layer_name, feature_layer_name, xyz_rpz_layer_name);
 
 
-cupConstLayers = ConstLayer('cup_xyz_rpy', [6 1]);
+cupConstLayers = ConstLayer('cup_xyz_rpy', [6 numCupTransforms]);
 lgraph = lgraph.addLayers(cupConstLayers);
 lgraph = lgraph.connectLayers('image_input', cupConstLayers.Name);
 lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_cup'}, imageSize, fov, ...
     'cup_nerf_', image_layer_name, feature_layer_name, cupConstLayers.Name);
 
+
+boxConstLayers = ConstLayer('box_xyz_rpy', [6 numBoxTransforms]);
+lgraph = lgraph.addLayers(boxConstLayers);
+lgraph = lgraph.connectLayers('image_input', boxConstLayers.Name);
+lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_box'}, imageSize, fov, ...
+    'box_nerf_', image_layer_name, feature_layer_name, boxConstLayers.Name);
+
 dlnet = dlnetwork(lgraph);
 
-imReal = imread('test.jpg');
+% imReal = imread('test1.jpg');
+% imReal = imread('test.png');
+imReal = imread('test2.jpg');
 imReal = double(imresize(imReal, imageSize))./255;
 img = dlarray(double(imReal), 'SSCB');
 [nerfPoints2D, realPoints2D] = dlnet.predict(img)
@@ -140,10 +157,14 @@ img = dlarray(double(imReal), 'SSCB');
 % hold on
 % plot(realPoints2D(1,:), realPoints2D(2,:),'LineStyle','none', 'Marker','.', 'MarkerSize', 8)
 
+dlnetOld = dlnet;
+
 %% train
-initialLearnRate = 2e-5;
+dlnet = dlnetOld;
+
+initialLearnRate = 1e-1;
 decay = 0.0001;
-momentum = 0.0;
+momentum = 0.8;
 velocity = [];
 iteration = 0;
 
@@ -163,90 +184,18 @@ while 1
     if ~isfinite(sum(gradients(1,:).Value{1}))
         why
     end
+    cupGrad = gather(extractdata(gradients(end-2,:).Value{1}));
+    ind = find(cupGrad(1,:)~= 0, 99);
+%     cupGrad(:,ind)'
+%     ind
+
     [dlnet,velocity] = sgdmupdate(dlnet, gradients, velocity, learnRate, momentum);
+    if mod(iteration, 3) ==0
+%         plotAllCorrespondence(dlnet)
+    end
     toc
+    
     %     pause(.2)
 end
 
-
-
-% %% network
-%
-% net = resnet18('Weights','imagenet');
-% inLayer = net.Layers(1);
-%
-% preLayers = [
-%     imageInputLayer([imageSize 3],'name','input', 'Normalization','zscore', 'Mean', ...
-%     inLayer.Mean,'StandardDeviation', inLayer.StandardDeviation);
-%     resize2dLayer('OutputSize', [224 224], 'name', 'resize', 'Method','bilinear')
-%     ];
-%
-% nerfLayers = [
-%     fullyConnectedLayer(6) % xyz rpy
-%     TFOffsetLayer(T0)
-%     NerfLayer(nerf, loftr, {'nerf_background'})
-%     TFLayer()
-%     ProjectionLayer()
-%     ];
-%
-%
-%
-% lgraph = net.layerGraph;
-% lgraph = lgraph.removeLayers('data');
-% % lgraph = lgraph.removeLayers('fc1000');
-% % lgraph = lgraph.removeLayers('prob');
-% lgraph = lgraph.removeLayers('ClassificationLayer_predictions');
-% lgraph = lgraph.addLayers(preLayers);
-% lgraph = lgraph.connectLayers('resize', 'conv1');
-% dlnet = dlnetwork(lgraph);
-%
-%
-% % close all
-% % figure(1)
-% % tmp = net.predict(imresize(imReal, [224,224], 'bilinear'));
-% % tmp = reshape(tmp,1,[]);
-% % plot(tmp)
-% % hold on
-% % tmp =  dlnet.predict(dlarray(double(imReal),'SSCB'));
-% % plot(tmp+.0001)
-%
-% %%
-% [allT, allNames] = nerf.name2Frame('nerf_background');
-% % T =  allT{testInd};
-%
-%
-% % dlX = dlarray(Z,'CB');
-%
-%
-% while 1
-%     T(1:3,end) = T(1:3,end) + .1*T(1:3, 1);
-%
-%     tic
-%     nerf.setTransform({'nerf_background', T})
-%     imgNerf = uint8(255*nerf.renderObject(h, w, 'nerf_background'));
-%
-%     %     img1 = imresize(imgNerf, [240, 320]);
-%     [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerf);
-%     toc
-%     %     vec = mkpts0-mkpts1;
-%
-%
-%
-%     % figure(1)
-%     % subplot(1,2,1)
-%     % imshow(imReal)
-%     % subplot(1,2,2)
-%     % imshow(imgNerf)
-%
-%
-%     figure(1)
-%     subplot(1,2,1)
-%     imshow(imReal)
-%     subplot(1,2,2)
-%     imshow(imgNerf)
-%     drawnow
-%     %
-%     %     figure(2)
-%     %     plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
-% end
 

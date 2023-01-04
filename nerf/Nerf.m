@@ -19,7 +19,19 @@ classdef Nerf < handle
             imgBlur = imgaussfilt(img,.5);
             background_ind = any(imgBlur > .04, 3);
             img = img.*background_ind;
+%             depth = imgaussfilt(depth, .5);
+%             background_ind = any(img > .2, 3);
             depth = depth.*background_ind;
+           
+            mask = depth ~= 0;
+            K = ones(3);
+            for i = 1:3
+            mask = conv2(mask, K,"same") == 9;
+%             imshow(mask)
+            end
+            depth = depth.*mask;
+%             inds = depth < .75*mean(depth(depth>0), 'all');
+%             depth(inds) = 0;
         end
 
         function img = colorAdjust(obj, img)
@@ -104,7 +116,9 @@ classdef Nerf < handle
             cellfun(@(x) x.renderNonBlock(h, w, fov_x), objs)
             for i = 1:length(objs)
                 [img, depth] = objs{i}.blockUntilResp();
+                inds = depth < 1.0;
                 [img, depth] = obj.removeBackground(img, depth);
+                depth(inds) = 0;
                 img = obj.colorAdjust(img);
                 varargout{2*i-1} = img;
                 varargout{2*i} = depth;

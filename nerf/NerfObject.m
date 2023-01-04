@@ -24,11 +24,9 @@ classdef NerfObject < handle
             obj.testConnection();
 
             obj.scale = 1.0;
-            if ~strcmp(name, 'nerf_background')
-                obj.scale =.5;
-            end
-
-
+%             if ~strcmp(name, 'nerf_background')
+%                 obj.scale = .5;
+%             end
 
         end
 
@@ -43,8 +41,11 @@ classdef NerfObject < handle
         end
 
         function [img, depth] = render(obj, w, h, fov_x)
-            obj.renderNonBlock(w, h, fov_x);
+            obj.renderNonBlock(w/3, h/3, fov_x);
             [img, depth] = obj.blockUntilResp();
+            img = imresize(img, [h,w]);
+            depth = imresize(depth, [h,w], 'nearest');
+            
         end
 
         function renderNonBlock(obj, h, w, fov_x)

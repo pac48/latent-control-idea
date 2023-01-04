@@ -1,19 +1,21 @@
 function lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, objectCel, imageSize, fov,...
     name_prefix, image_layer_name, global_tf_layer_name, xyz_rpz_layer_name)
 
-knnLayer = KNNLayer([name_prefix 'KNNLayer']);
+[allT, allImgs] = nerf.name2Frame(objectCel{1});
+
+numTransforms = length(allT);
+knnLayer = fullyConnectedLayer((3+3)*numTransforms, 'Name', [name_prefix 'FCLayer']);
 nerfLayer = NerfLayer([name_prefix 'NerfLayer'], nerf, loftr, objectCel, imageSize(1), imageSize(2), fov);
-tfOffsetLayer = TFOffsetLayer([name_prefix 'TFOffsetLayer']);
+tfOffsetLayer = TFOffsetLayer([name_prefix 'TFOffsetLayer'], allT);
 tfLayer = TFLayer([name_prefix 'TFLayer']);
 projectionLayer = ProjectionLayer([name_prefix 'ProjectionLayer']);
 
 
-[allT, allImgs] = nerf.name2Frame(objectCel{1});
-for i = 1:size(allImgs)
-    img = dlarray(double(allImgs{i})./255,'SSCB');
-    Z = gather(extractdata(featureNet.predict(img)));
-    knnLayer.addImage(Z, inv(allT{i}));
-end
+% for i = 1:size(allImgs)
+%     img = dlarray(double(allImgs{i})./255,'SSCB');
+%     Z = gather(extractdata(featureNet.predict(img)));
+%     knnLayer.addImage(Z, inv(allT{i}));
+% end
 
 % layers = [
 %     TFOffsetLayer([name_prefix 'TFOffsetLayer'])
@@ -31,7 +33,7 @@ lgraph = lgraph.addLayers(projectionLayer);
 lgraph = lgraph.connectLayers(global_tf_layer_name, knnLayer.Name);
 
 lgraph = lgraph.connectLayers(xyz_rpz_layer_name, [tfOffsetLayer.Name '/' tfOffsetLayer.InputNames{1}]);
-lgraph = lgraph.connectLayers(knnLayer.Name, [tfOffsetLayer.Name '/' tfOffsetLayer.InputNames{2}]);
+% lgraph = lgraph.connectLayers(knnLayer.Name, [tfOffsetLayer.Name '/' tfOffsetLayer.InputNames{2}]);
 
 lgraph = lgraph.connectLayers([tfOffsetLayer.Name '/' tfOffsetLayer.OutputNames{2}], [nerfLayer.Name '/' nerfLayer.InputNames{1}]);
 lgraph = lgraph.connectLayers(image_layer_name, [nerfLayer.Name '/' nerfLayer.InputNames{2}]);

@@ -17,8 +17,8 @@ class ZMQServer:
         self.send_context = zmq.Context()
         self.send_socket = self.send_context.socket(zmq.PUB)
         self.send_socket.connect("tcp://localhost:" + str(port + 1))
-        self.send_socket.connect("tcp://localhost:" + str(port + 1))
-        self.send_socket.connect("tcp://localhost:" + str(port + 1))
+        # self.send_socket.connect("tcp://localhost:" + str(port + 1))
+        # self.send_socket.connect("tcp://localhost:" + str(port + 1))
 
     def recv(self):
         """

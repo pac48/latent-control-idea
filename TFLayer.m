@@ -22,9 +22,15 @@ classdef TFLayer < nnet.layer.Layer & nnet.layer.Formattable
             % Z: 3d points (3 x n x batch)
             T = reshape(X, 4, 4, []);
             %             Tinv = inv(extractdata(T));
-            points = extractdata(points);
-            points = reshape(points,3, []);
-            Z = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :);
+            ind = points(4,1,1);
+            points = extractdata(points(1:3,:,:));
+            if ind == 0
+                Z = dlarray(points, 'SSB');
+                return;
+            end
+            points = reshape(points, 3, []);
+%             Z = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :);
+            Z = T(1:3, 1:3, ind)*points + T(1:3, end, ind);
             Z = dlarray(Z, 'SSB');
             %             mean(points,2)
         end

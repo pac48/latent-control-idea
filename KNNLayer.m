@@ -22,7 +22,8 @@ classdef KNNLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             layer.h.structure.([layer.Name 'features']) = tmp;
             tmp = layer.h.structure.([layer.Name 'targets']);
             tmp = cat(3, tmp, T);
-            layer.h.structure.([layer.Name 'targets']) = tmp;end
+            layer.h.structure.([layer.Name 'targets']) = tmp;
+        end
 
         function Z = predict(layer, X)
             % X: image

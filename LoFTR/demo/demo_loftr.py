@@ -144,8 +144,8 @@ if __name__ == '__main__':
     server = ZMQServer(5557, 'loftr')
     while True:
         arr = server.recv()
-        frame_0 = arr[:, :, 0]
-        frame_1 = arr[:, :, 1]
+        frame_0 = arr[:, :, :, :, 0]
+        frame_1 = arr[:, :, :, :, 1]
         # frame_id += 1
         # frame, ret = vs.next_frame()
         # if frame_id % opt.skip_frames != 0:
