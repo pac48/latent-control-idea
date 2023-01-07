@@ -7,6 +7,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
         width
         fov
         numTransforms
+        s
     end
 
     methods
@@ -31,24 +32,38 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             layer.width = w;
             layer.fov = fov;
 
+            layer.s = RandStream('mlfg6331_64');
+
             layer.h.structure.imReal = [];
 
             [allT, ~] = nerf.name2Frame(objNames{1});
             layer.numTransforms = length(allT);
-            for j = 1:layer.numTransforms
-                layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)]) = memoize(@layer.render);
-            end
-            if isfield(layer.h.structure, layer.Name)
-                layer.h.structure = rmfield(layer.h.structure, layer.Name);
-            end
+            %             for j = 1:layer.numTransforms
+            %                 layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)]) = memoize(@layer.render);
+            %             end
+            %             if isfield(layer.h.structure, layer.Name)
+            %                 layer.h.structure = rmfield(layer.h.structure, layer.Name);
+            %             end
+
+            layer.clearCache();
+
+
             %             layer.h.structure.(['memoizedRender' layer.objNames{1}]).CacheSize = 1;
 
         end
 
         function clearCache(layer)
-            for j = 1:layer.numTransforms
-                layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)]).clearCache;
-            end
+            layer.h.structure.(layer.Name).imRealBest = [];
+            layer.h.structure.(layer.Name).imgNerfBest  = [];
+            layer.h.structure.(layer.Name).mkptsRealBest = [];
+            layer.h.structure.(layer.Name).mkptsNerfBest = [];
+            layer.h.structure.(layer.Name).mconfBest = [];
+            layer.h.structure.(layer.Name).jBest  = [];
+            layer.h.structure.(layer.Name).points = [];
+            layer.h.structure.(layer.Name).cost = [];
+            %             for j = 1:layer.numTransforms
+            %                 layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)]).clearCache;
+            %             end
         end
 
         function [fl, fx, fy] = getFValues(layer)
@@ -57,12 +72,14 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             fy = fx*layer.height/layer.width;
         end
 
-        function [mkptsNerf, mkptsReal, points, mconf, imgNerf] = render(layer, T)
+        function [mkptsNerf, mkptsReal, points, mconf, imgNerf, cost] = render(layer, T)
             mkptsReal = [];
             points = [];
             mkptsNerf = [];
             imgNerf = [];
             mconf = [];
+            cost = [];
+
             if all(T==1,'all')
                 return
             end
@@ -79,40 +96,65 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             imgNerf = uint8(255*img);
             [mkptsReal, mkptsNerf, mconf] = layer.loftr.predict(layer.h.structure.imReal, imgNerf);
 
-            if isempty(mkptsReal)
+%             if ~strcmp('background_nerf_NerfLayer', layer.Name)
+%                 img1 = cat(3, rgb2gray(layer.h.structure.imReal),rgb2gray(layer.h.structure.imReal),rgb2gray(layer.h.structure.imReal)  );
+%                 img2 = cat(3, rgb2gray(imgNerf),rgb2gray(imgNerf),rgb2gray(imgNerf)  );
+%                  [mkptsReal, mkptsNerf, mconf] = layer.loftr.predict(img1, img2);
+%                 why
+%             end
+
+            if size(mkptsNerf,1) < 3
                 return
             end
 
-% Debug
-%             if ~contains(layer.Name, 'background') && size(mkptsNerf, 1) >= 3
-                maxDistance = 3;
-                sampleSize = 3;
-                [modelRANSAC, inlierIdx] = ransac2d(mkptsNerf, mkptsReal, sampleSize, maxDistance);
-                mkptsNerf = mkptsNerf(inlierIdx, :);
-                mkptsReal = mkptsReal(inlierIdx, :);
-                mconf = mconf(inlierIdx);
-%             end
+            % Debug
+            %             if ~contains(layer.Name, 'background') && size(mkptsNerf, 1) >= 3
 
 
             inds = floor(mkptsNerf);
             inds = (inds(:,1,: )-1)*layer.height + inds(:,2,:);
             goodInds = depth(inds) ~= 0;
             inds = inds(goodInds);
-            if isempty(inds)
+            if length(inds) < 3
                 return
             end
-            
-%             inds = (1:numel(depth))';
-%             tmp = depth(inds) ~= 0;
-%             inds = inds(tmp);
+
+            if false
+                inds = (1:numel(depth))';
+                %                         tmp = depth(inds) ~= 0;
+                %                         inds = inds(tmp);
+                d = depth(inds)*0+1;
+                [X,Y] = meshgrid(linspace(-.5, .5, layer.width), linspace(-.5, .5, layer.height));
+                xPix = X(inds);
+                yPix = -Y(inds);
+                [fl, fx, fy] = layer.getFValues();
+                xDir =  fx*xPix;
+                yDir =  fy*yPix;
+                zDir = -fl*ones(size(yDir));
+                vec = [xDir yDir zDir];
+                vec = vec./sqrt(sum(vec.^2, 2));
+                points = vec.*d;
+                points = points';  % camera coordinates
+                %             points = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :); % world coordinates
+                figure
+                imgR = img(:,:,1);
+                imgG = img(:,:,2);
+                imgB = img(:,:,3);
+                imgR = imgR(inds);
+                imgG = imgG(inds);
+                imgB = imgB(inds);
+                imgtmp = cat(3, imgR, imgG, imgB);
+                cData = permute(imgtmp, [3 1 2]);
+                cData = reshape(cData, 3, [])';
+                scatter3(points(1, :), points(2, :), points(3, :)*0+1, 'CData', cData)
+                axis equal
+            end
 
             d = depth(inds);
 
             [X,Y] = meshgrid(linspace(-.5, .5, layer.width), linspace(-.5, .5, layer.height));
             xPix = X(inds);
             yPix = -Y(inds);
-
-
 
             [fl, fx, fy] = layer.getFValues();
 
@@ -125,32 +167,21 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             points = points';  % camera coordinates
             points = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :); % world coordinates
 
-% 
-%                         figure
-%                         imgR = img(:,:,1);
-%                         imgG = img(:,:,2);
-%                         imgB = img(:,:,3);
-%                         imgR = imgR(inds);
-%                         imgG = imgG(inds);
-%                         imgB = imgB(inds);
-%                         img = cat(3, imgR, imgG, imgB);
-%                         cData = permute(img, [3 1 2]);
-%                         cData = reshape(cData, 3, [])';
-%                         scatter3(points(1, :), points(2, :), points(3, :), 'CData', cData)
-%                         axis equal
-
-            %                         close all
-            %                         imagesc(depth)
-            % imshow(img)
-            %             hold on
-            %                 px = [mkptsNerf(:,1) mkptsNerf(:,1)];
-            %                 py =  [mkptsNerf(:,2) mkptsNerf(:,2)];
-            %                 plot(px', py', Marker='.');
-
-
             mkptsNerf = [mkptsNerf(goodInds,1) mkptsNerf(goodInds,2)];
             mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
             mconf = mconf(goodInds);
+            %
+%             maxDistance = 20;
+%             sampleSize = 3;
+%             [modelRANSAC, inlierIdx] = ransac2d(mkptsNerf, mkptsReal, sampleSize, maxDistance);
+%             inds = 1:size(mkptsReal,1);
+%             inds = inds(inlierIdx);
+%             mkptsNerf = mkptsNerf(inds, :);
+%             mkptsReal = mkptsReal(inds, :);
+%             mconf = mconf(inds);
+%             points = points(:, inds);
+%             cost = fitValue(modelRANSAC, [mkptsNerf mkptsReal]);
+
         end
 
         function [Z1, Z2] = predict(layer, Tin, Img)
@@ -166,64 +197,118 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             Z2 = dlarray(zeros(2, 1, 1),'SSB'); % real points
 
             mkptsRealBest = [];
-            if isfield(layer.h.structure, layer.Name)
+            if ~isempty(layer.h.structure.(layer.Name).jBest)
                 jInds  = layer.h.structure.(layer.Name).jBest;
             else
                 jInds = 1:size(Tin, 3);
             end
 
-            for j = jInds
-                T = Tin(:,:,j); % cam to world
-                [mkptsNerf, mkptsReal, points, mconf, imgNerf] = layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)])(T);
-                if length(jInds) == 1
-                    mkptsReal = layer.h.structure.(layer.Name).mkptsRealBest;
-                    mkptsNerf = layer.h.structure.(layer.Name).mkptsNerfBest;
-                    points = layer.h.structure.(layer.Name).points;
+            skipNerf = rand(1) > .03 && ~isempty(layer.h.structure.(layer.Name).points);
+            if ~skipNerf
+                for j = jInds
+                    T = Tin(:,:,j); % cam to world
+                    [mkptsNerf, mkptsReal, points, mconf, imgNerf, cost] = layer.render(T);%layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)])(T);
+                    %                 else
+                    %                     tmp = layer.h.structure.(layer.Name);
+                    %                     mkptsReal = tmp.mkptsRealBest;
+                    %                     mkptsNerf = tmp.mkptsNerfBest;
+                    %                     points = tmp.points;
+                    %                     imgNerf = tmp.imgNerfBest;
+                    %                     mconf = tmp.mconfBest;
+                    %                     cost = tmp.cost;
+                    %                 end
+                    if j == layer.h.structure.(layer.Name).jBest
+                        layer.h.structure.(layer.Name).imgNerfBest = imgNerf;
+                    end
 
-%                     imgNerf = layer.h.structure.(layer.Name).imgNerfBest;
-%                     mconf = layer.h.structure.(layer.Name).mconfBest;
-                end
-                %                 inds = find(mconf > .1, 9999);
-                %                 mkptsNerf = mkptsNerf(inds, :);
-                %                 mkptsReal =  mkptsReal(inds, :);
-                %                 points = points(:,inds);
+                    if ~isempty(points) && size(points, 2) >=  size(layer.h.structure.(layer.Name).points, 2)
+                        layer.h.structure.(layer.Name).imRealBest = imReal;
+                        layer.h.structure.(layer.Name).imgNerfBest = imgNerf;
+                        layer.h.structure.(layer.Name).mkptsRealBest = mkptsReal;
+                        layer.h.structure.(layer.Name).mkptsNerfBest = mkptsNerf;
+                        layer.h.structure.(layer.Name).mconfBest = mconf;
+                        layer.h.structure.(layer.Name).jBest = j;
+                        layer.h.structure.(layer.Name).points = points;
+                        layer.h.structure.(layer.Name).cost = cost;
+                    end
 
-                if size(points, 2) > size(Z1, 2)
+                    %                 if length(jInds) == 1
+                    %                     if ~skipNerf && size(mkptsReal,1) <= size(layer.h.structure.(layer.Name).mkptsRealBest,1)
+                    %                         tmp = layer.h.structure.(layer.Name);
+                    %                         mkptsReal = tmp.mkptsRealBest;
+                    %                         mkptsNerf = tmp.mkptsNerfBest;
+                    %                         points = tmp.points;
+                    %                         mconf = tmp.mconfBest;
+                    %                         cost = tmp.cost;
+                    %                     end
+                    %                 end
+                    %                 inds = find(mconf > .1, 9999);
+                    %                 mkptsNerf = mkptsNerf(inds, :);
+                    %                 mkptsReal =  mkptsReal(inds, :);
+                    %                 points = points(:,inds);
+
+                    %                 if ~isempty(points) && size(points, 2) >= size(layer.h.structure.(layer.Name).points, 2)
                     % hold off
                     % subplot(1,1,1)
                     % plotCorrespondence(imReal, imgNerf, mkptsReal, mkptsNerf, mconf)
                     % drawnow
-                    layer.h.structure.(layer.Name).imRealBest = imReal;
-                    layer.h.structure.(layer.Name).imgNerfBest = imgNerf;
-                    layer.h.structure.(layer.Name).mkptsRealBest = mkptsReal;
-                    layer.h.structure.(layer.Name).mkptsNerfBest = mkptsNerf;
-                    layer.h.structure.(layer.Name).mconfBest = mconf;
-                    layer.h.structure.(layer.Name).jBest = j;
-                    layer.h.structure.(layer.Name).points = points;
 
-                    points = cat(1, points, repmat(j, 1, size(points,2)));
-                    Z1 = dlarray(points, 'SSB');
-                    offset = [layer.width layer.height];
-                    [fl, fx, fy] = layer.getFValues();
-                    mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
-                    Z2 = dlarray(mkptsRealNormalized','SSB');
+
+                    %                     [~, idx] = sort(cost, 'ascend');
+                    %                     s = RandStream('mlfg6331_64');
+                    %                     idx = datasample(s,1:length(cost), 3,'Replace',false);
+                    %
+                    %                     points = points(:, idx(1:3));
+                    %                     mkptsReal = mkptsReal(idx(1:3), :);
+                    %                     mkptsNerf = mkptsNerf(idx(1:3), :);
+                    %
+                    %                     points = cat(1, points, repmat(j, 1, size(points,2)));
+                    %                     Z1 = dlarray(points, 'SSB');
+                    %                     offset = [layer.width layer.height];
+                    %                     [fl, fx, fy] = layer.getFValues();
+                    %                     mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
+                    %                     Z2 = dlarray(mkptsRealNormalized','SSB');
+                    %                 end
+
+                    %                 if strcmp('nerf_cup', layer.objNames{1})
+                    %                     subplot(1,2,1)
+                    %                     imshow(imReal)
+                    %                     subplot(1,2,2)
+                    %                     imshow(imgNerf)
+                    %                     why
+                    %                 end
                 end
-
-                %                 if strcmp('nerf_cup', layer.objNames{1})
-                %                     subplot(1,2,1)
-                %                     imshow(imReal)
-                %                     subplot(1,2,2)
-                %                     imshow(imgNerf)
-                %                     why
-                %                 end
             end
 
-            if isempty(size(Z1,2)==1)
+            if isempty(layer.h.structure.(layer.Name).points)
                 %                     subplot(1,2,1)
                 %                     imshow(imReal)
                 %                     subplot(1,2,2)
                 %                     imshow(imgNerf)
-                warning('bad')
+                warning('bad bad')
+            else
+                tmp = layer.h.structure.(layer.Name);
+                mkptsReal = tmp.mkptsRealBest;
+                mkptsNerf = tmp.mkptsNerfBest;
+                points = tmp.points;
+                imgNerf = tmp.imgNerfBest;
+                mconf = tmp.mconfBest;
+                cost = tmp.cost;
+                j = tmp.jBest;
+
+                idx = datasample(layer.s, 1:size(points,2), 3,'Replace',false);
+
+                %                     points = points(:, idx(1:3));
+                %                     mkptsReal = mkptsReal(idx(1:3), :);
+                %                     mkptsNerf = mkptsNerf(idx(1:3), :);
+
+                points = cat(1, points, repmat(j, 1, size(points,2)));
+                Z1 = dlarray(points, 'SSB');
+                offset = [layer.width layer.height];
+                [fl, fx, fy] = layer.getFValues();
+                mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
+                Z2 = dlarray(mkptsRealNormalized','SSB');
+
             end
 
 

@@ -14,7 +14,7 @@ from predictor import Predictor
 import torch.utils.model_zoo as model_zoo
 import torch.onnx
 
-import pyzed.sl as sl
+# import pyzed.sl as sl
 from ZMQ_server import ZMQServer
 
 

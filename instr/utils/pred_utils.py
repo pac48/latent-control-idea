@@ -36,7 +36,7 @@ YCB_OBJECTS = [
 def stuff_from_state_dict_path(path):
     cfg_path = '/'.join(path.split('/')[:-2]) + '/config.yaml'
     with open(cfg_path, 'r') as f:
-        cfg = CfgNode(yaml.load(f))
+        cfg = CfgNode(yaml.safe_load(f))
 
     net = INSTR(cfg)
     state_dict = torch.load(path)

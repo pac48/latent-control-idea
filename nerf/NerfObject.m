@@ -42,6 +42,7 @@ classdef NerfObject < handle
 
         function [img, depth] = render(obj, w, h, fov_x)
             obj.renderNonBlock(w/3, h/3, fov_x);
+%             obj.renderNonBlock(w, h, fov_x);
             [img, depth] = obj.blockUntilResp();
             img = imresize(img, [h,w]);
             depth = imresize(depth, [h,w], 'nearest');
@@ -72,6 +73,7 @@ classdef NerfObject < handle
             %             img = 1;
             depth = out(:,:,5);
             img = out(:,:,1:3);
+            
         end
 
         function testConnection(obj)

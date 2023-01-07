@@ -15,14 +15,20 @@ classdef LoFTR < handle
         end
 
         function [mkpts0, mkpts1, mconf] = predict(obj, image0, image1)
+            w = size(image0, 2);
+            h = size(image0, 1);
+            image0 = imresize(image0, [480 640]*1);
+            image1 = imresize(image1, [480 640]*1);
+
             img = zeros(size(image0, 4), 1, size(image0,1), size(image0,2), 2, 'uint8');
             for i = 1:size(image0, 4)
                 img(i, :, :,:,:) = cat(3, rgb2gray(image0(:,:,:,i)), rgb2gray(image1(:,:,:,i)));
             end
+
             out = double(obj.blockRecv(img));
             if ~isempty(out)
-                mkpts0 = out(:, 1:2);
-                mkpts1 = out(:, 3:4);
+                mkpts0 = out(:, 1:2).*[w/(640*1) h/(480*1)];
+                mkpts1 = out(:, 3:4).*[w/(640*1) h/(480*1)];
                 mconf= out(:,5);
             else
                 mkpts0 = [];

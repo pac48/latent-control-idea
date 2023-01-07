@@ -1,11 +1,13 @@
 classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
 
     properties
-        f
+        fx
+        fy
+        fl
     end
 
     methods
-        function layer = ProjectionLayer(name)
+        function layer = ProjectionLayer(name, fl, fx, fy)
             % Create a TFLayer.
 
             % Set layer name.
@@ -16,7 +18,9 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
             % Set layer type.
             layer.Type = "ProjectionLayer";
 
-            layer.f = 1;
+            layer.fx = fx;
+            layer.fy = fy;
+            layer.fl = fl;
 
         end
 
@@ -27,8 +31,8 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
             X = points(1,:,:);
             Y = points(2,:,:);
             Z = points(3,:,:);
-            x = -layer.f*X./Z;
-            y = -layer.f*Y./Z;
+            x = -layer.fl*X./Z;
+            y = -layer.fl*Y./Z;
 
 
             out = cat(1, x, y);

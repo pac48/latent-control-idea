@@ -30,6 +30,7 @@ classdef Nerf < handle
 %             imshow(mask)
             end
             depth = depth.*mask;
+
 %             inds = depth < .75*mean(depth(depth>0), 'all');
 %             depth(inds) = 0;
         end
@@ -116,6 +117,9 @@ classdef Nerf < handle
             cellfun(@(x) x.renderNonBlock(h, w, fov_x), objs)
             for i = 1:length(objs)
                 [img, depth] = objs{i}.blockUntilResp();
+%                 img = imresize(img, [h,w]);
+%                 depth = imresize(depth, [h,w], 'nearest');
+
                 inds = depth < 1.0;
                 [img, depth] = obj.removeBackground(img, depth);
                 depth(inds) = 0;
