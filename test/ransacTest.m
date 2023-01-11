@@ -10,7 +10,7 @@ pointsOriginal = .1*rand(10, 2);
 angle = 2*pi*rand(1);
 offset = [.4; .4]+.2*rand(2,1);%rand(2,1);
 R = eul2rotm([angle 0 0]);
-points = (R(1:2, 1:2)*pointsOriginal' + offset)';
+points = (R(1:2, 1:2)*(pointsOriginal') + offset)';
 % add noise
 numCorrupted = 3;
 points(1:numCorrupted, :) = points(1:numCorrupted, :) + .1*rand(size(points(1:numCorrupted, :)));
@@ -40,7 +40,7 @@ plotStuff(modelRANSAC, pointsOriginal, points, numCorrupted)
 [R_leastSquare offset_leastSquare]
 
 [R_RANSAC, offset_RANSAC] = getTransform(modelRANSAC);
-[R_RANSAC offset_RANSAC]
+[R_RANSAC' -R_RANSAC'*offset_RANSAC]
 
 [R(1:2, 1:2) offset]
 

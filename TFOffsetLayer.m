@@ -10,7 +10,7 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable
             layer.Name = name; %'TFOffsetLayer';
 
             layer.InputNames = {'in1'}; %, 'in2'};
-            layer.OutputNames = {'out1', 'out2', 'out3'};
+            layer.OutputNames = {'out1', 'out2', 'T'};
 
             % Set layer description.
             layer.Description = "apply constant transform to input";

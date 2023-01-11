@@ -1,4 +1,4 @@
-function plotRender(dlnet)
+function img = plotRender(dlnet)
 layers = dlnet.Layers;
 hold off
 for layer = layers'
@@ -16,6 +16,7 @@ for layer = layers'
     end
 end
 hold on
+img = imgNerfBest;
 
 for layer = layers'
     if isa(layer, 'NerfLayer')
@@ -24,13 +25,17 @@ for layer = layers'
         end
         imgNerfBest = layer.h.structure.(layer.Name).imgNerfBest;
         if ~isempty(imgNerfBest)
-            if strcmp('nerf_cup', layer.objNames{1})
+%             if strcmp('nerf_cup', layer.objNames{1})
                 background_ind = sum(imgNerfBest,3) ~= 0;
                 image(imgNerfBest, 'AlphaData', background_ind)
-            elseif strcmp('nerf_box', layer.objNames{1})
-background_ind = sum(imgNerfBest,3) ~= 0;                
-image(imgNerfBest, 'AlphaData', background_ind)
-            end
+                set(gca, 'YDir','reverse')
+
+                img = img.*uint8(1-background_ind) + imgNerfBest.*uint8(background_ind);
+
+%             elseif strcmp('nerf_box', layer.objNames{1})
+%                 background_ind = sum(imgNerfBest,3) ~= 0;                
+%                 image(imgNerfBest, 'AlphaData', background_ind)
+%             end
         end
 
     end

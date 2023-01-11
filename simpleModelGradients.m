@@ -1,4 +1,4 @@
-function [loss,gradients, state] = simpleModelGradients(dlnet, Z, img)
+function [loss,gradients, state] = simpleModelGradients(dlnet, Z, img, objects)
 % X: real scene image
 
 backgroundRealPoints2D = [];
@@ -25,58 +25,52 @@ boxRealPoints2D = [];
 %     backgroundRealPoints2D, backgroundNerfPoints2D, ...
 %     cupTF, ...
 %     cupRealPoints2D, cupNerfPoints2D, ...
+%     boxTF, ...6
+%     boxRealPoints2D, boxNerfPoints2D, ...
+%     state] = dlnet.predict(Z, img);
+
+% [backgroundTF, ...
+%     backgroundRealPoints2D, backgroundNerfPoints2D, ...
 %     boxTF, ...
 %     boxRealPoints2D, boxNerfPoints2D, ...
 %     state] = dlnet.predict(Z, img);
 
-[backgroundTF, ...
-    backgroundRealPoints2D, backgroundNerfPoints2D, ...
-    boxTF, ...
-    boxRealPoints2D, boxNerfPoints2D, ...
-    state] = dlnet.predict(Z, img);
+[map, state] = getNetOutput(dlnet, Z, img);
 
-% [backgroundTF, ...
-%     backgroundRealPoints2D, backgroundNerfPoints2D, ...
-%     state] = dlnet.predict(Z, img);
 
 loss = 0;
+% objects = {'background', 'book'};
 
-if numel(backgroundRealPoints2D) > 2
-    backgroundLoss = getObjectLoss(backgroundRealPoints2D, backgroundNerfPoints2D, 1, 10);
-    loss = loss + backgroundLoss;
+for object = objects
+    
+    T = getObjectTransforms(dlnet, map, object{1});
+    [mkptsNerf, mkptsReal] = getObjectPoints(map, object{1});
 
-    %     backgroundRealPoints2D = dlarray(gather(extractdata(backgroundRealPoints2D)), 'SSB');
-    %     backgroundLoss = 100*sum( (backgroundNerfPoints2D - backgroundRealPoints2D).^2, 'all');
-    %     backgroundLoss = backgroundLoss./size(backgroundRealPoints2D,2);
-    %     loss = loss + backgroundLoss;
-    %     backgroundLoss = 0*backgroundLoss;
+    if numel(mkptsReal) > 2 && strcmp(object{1}, 'background')
+        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
+%         loss = loss + backgroundLoss;
+    elseif numel(mkptsReal) > 2
+        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
+%         loss = loss + cupLoss;
+    end
+
 end
 
-if numel(cupRealPoints2D) > 2
-    cupLoss = getObjectLoss(cupRealPoints2D, cupNerfPoints2D, 10, 1000);
-    loss = loss + cupLoss;
 
-    %     cupRealPoints2D = dlarray(gather(extractdata(cupRealPoints2D)), 'SSB');
-    %     cupLoss = 100*sum( (cupNerfPoints2D - cupRealPoints2D).^2, 'all');
-    %     cupLoss = cupLoss./size(cupRealPoints2D,2);
-    %     loss = loss + cupLoss;
-    %     cupLoss = 0*cupLoss;
-end
-
-if numel(boxRealPoints2D) > 2
-    boxLoss = getObjectLoss(boxRealPoints2D, boxNerfPoints2D, 10, 1000);
-    %     boxRealPoints2D = dlarray(gather(extractdata(boxRealPoints2D)), 'SSB');
-    %     boxLoss = 100*sum( (boxNerfPoints2D - boxRealPoints2D).^2, 'all');
-    %
-    %     boxNerfPoints2DZero = boxNerfPoints2D- mean(boxNerfPoints2D,2);
-    %     boxRealPoints2DZero = boxRealPoints2D- mean(boxRealPoints2D,2);
-    %
-    %     boxLoss = boxLoss + 5000*sum( (boxNerfPoints2DZero - boxRealPoints2DZero).^2, 'all');
-    %
-    %     boxLoss = boxLoss./size(boxRealPoints2D,2);
-    loss = loss + boxLoss;
-    %     cupLoss = 0*cupLoss;
-end
+% if numel(boxRealPoints2D) > 2
+%     boxLoss = getObjectLoss(boxRealPoints2D, boxNerfPoints2D, 10, 1000);
+%     %     boxRealPoints2D = dlarray(gather(extractdata(boxRealPoints2D)), 'SSB');
+%     %     boxLoss = 100*sum( (boxNerfPoints2D - boxRealPoints2D).^2, 'all');
+%     %
+%     %     boxNerfPoints2DZero = boxNerfPoints2D- mean(boxNerfPoints2D,2);
+%     %     boxRealPoints2DZero = boxRealPoints2D- mean(boxRealPoints2D,2);
+%     %
+%     %     boxLoss = boxLoss + 5000*sum( (boxNerfPoints2DZero - boxRealPoints2DZero).^2, 'all');
+%     %
+%     %     boxLoss = boxLoss./size(boxRealPoints2D,2);
+%     loss = loss + boxLoss;
+%     %     cupLoss = 0*cupLoss;
+% end
 
 
 % loss = backgroundLoss + cupLoss;

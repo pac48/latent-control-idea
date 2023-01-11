@@ -29,7 +29,7 @@ _CN.COARSE.TEMP_BUG_FIX = False
 
 # 3. Coarse-Matching config
 _CN.MATCH_COARSE = CN()
-_CN.MATCH_COARSE.THR = 0.01
+_CN.MATCH_COARSE.THR = 0.05
 _CN.MATCH_COARSE.BORDER_RM = 2
 _CN.MATCH_COARSE.MATCH_TYPE = 'dual_softmax'  # options: ['dual_softmax, 'sinkhorn']
 _CN.MATCH_COARSE.DSMAX_TEMPERATURE = 0.1

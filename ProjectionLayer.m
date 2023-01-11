@@ -17,6 +17,8 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             % Set layer type.
             layer.Type = "ProjectionLayer";
+            layer.OutputNames = {'mkptsNerf'};
+
 
             layer.fx = fx;
             layer.fy = fy;

@@ -3,7 +3,7 @@ function lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, objectCel, imag
 
 [allT, ~] = nerf.name2Frame(objectCel{1});
 
-% allT   = allT(floor(linspace(1,length(allT), 20 )));
+allT   = allT(floor(linspace(1,length(allT), 20 )));
 
 numTransforms = length(allT);
 % knnLayer = fullyConnectedLayer((6)*numTransforms, 'Name', [name_prefix 'FCLayer']);

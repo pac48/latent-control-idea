@@ -8,20 +8,24 @@ addpath('nerf/')
 addpath('utils/')
 addpath('utils/ransac2d/')
 
-% loftr = LoFTR();
-loftr = SuperGlue();
-nerf = Nerf({'nerf_background', 'nerf_box', 'nerf_cup'});
-numBackgroundTransforms = length(nerf.name2Frame('nerf_background'));
-numBoxTransforms = length(nerf.name2Frame('nerf_box'));
-numCupTransforms = length(nerf.name2Frame('nerf_cup'));
+loftr = LoFTR();
+% loftr = SuperGlue();
+objects = {'background', 'book', 'iphone_box', 'plate', 'blue_block'}; %,
+
+tmp = cellfun(@(x) ['nerf_' x], objects, 'UniformOutput', false);
+nerf = Nerf(tmp); %'nerf_blue_block', 
+
+% numBackgroundTransforms = length(nerf.name2Frame('nerf_background'));
+% numBoxTransforms = length(nerf.name2Frame('nerf_box'));
+% numCupTransforms = length(nerf.name2Frame('nerf_cup'));
 
 % w = 320*2;
 % h = 240*2;
 
 w = 4032/4;
 h = 3024/4;
-
-fov = 54.7505;%50.45;%54;%86.5797;%70.8193; % needs to be same value as camera used for real images
+% 56 was pretty good
+fov = 56;%57; %54.7505;%50.45;%54;%86.5797;%70.8193; % needs to be same value as camera used for real images
 imageSize = [h, w];
 % [allT, allImgs] = nerf.name2Frame('nerf_background');
 % testInd = 23;
@@ -64,7 +68,7 @@ imageSize = [h, w];
 %% init feature network
 net = resnet18('Weights','imagenet');
 inLayer = net.Layers(1);
-imageInput = imageInputLayer([imageSize(1:2) 3],'name','image_input', 'Normalization','none');;
+imageInput = imageInputLayer([imageSize(1:2) 3],'name','image_input', 'Normalization','none');
 featurePreLayers = [...
     %     imageInputLayer([imageSize(1:2) 3],'name','image_input', 'Normalization','zscore', 'Mean', ...
     %     inLayer.Mean,'StandardDeviation', inLayer.StandardDeviation);
@@ -126,26 +130,18 @@ for i = 1:size(netUpdated.Learnables,1)
     netUpdated = setLearnRateFactor(netUpdated, tmp.Layer, tmp.Parameter, 0);
 end
 
-
-
-% lgraph = netUpdated.layerGraph;
-
-% backgroundConstLayers = ConstLayer('background_xyz_rpy', [6 numBackgroundTransforms]);
-% lgraph = lgraph.addLayers(backgroundConstLayers);
-% lgraph = lgraph.connectLayers('image_input', backgroundConstLayers.Name);
-
 lgraph = layerGraph();
 featureInput = featureInputLayer(numFeatures, 'Name', 'feature_input');
 lgraph = lgraph.addLayers(featureInput);
 lgraph = lgraph.addLayers(imageInput);
 
-name_prefix = 'background_nerf_';
 image_layer_name = 'image_input';
 feature_layer_name = featureInput.Name;
-% feature_layer_name = 'featurePostLayer';
-% xyz_rpz_layer_name = backgroundConstLayers.Name;
-lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_background'}, imageSize, fov, ...
-    name_prefix, image_layer_name, feature_layer_name);
+
+
+% name_prefix = 'background_nerf_';
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_background'}, imageSize, fov, ...
+%     name_prefix, image_layer_name, feature_layer_name);
 
 
 % cupConstLayers = ConstLayer('cup_xyz_rpy', [6 numCupTransforms]);
@@ -159,8 +155,27 @@ lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_background'}, ima
 % lgraph = lgraph.addLayers(boxConstLayers);
 % lgraph = lgraph.connectLayers('image_input', boxConstLayers.Name);
 
-lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_box'}, imageSize, fov, ...
-    'box_nerf_', image_layer_name, feature_layer_name);
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_box'}, imageSize, fov, ...
+%     'box_nerf_', image_layer_name, feature_layer_name);
+
+for object = objects
+name = object{1}; 
+lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {['nerf_' name]}, imageSize, fov, ...
+    [name '_nerf_'], image_layer_name, feature_layer_name);
+end
+
+
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_book'}, imageSize, fov, ...
+%     'book_nerf_', image_layer_name, feature_layer_name);
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_iphone_box'}, imageSize, fov, ...
+%     'iphone_box_nerf_', image_layer_name, feature_layer_name);
+% % 
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_plate'}, imageSize, fov, ...
+%     'plate_nerf_', image_layer_name, feature_layer_name);
+
+% lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, {'nerf_blue_block'}, imageSize, fov, ...
+%     'blue_block_nerf_', image_layer_name, feature_layer_name);
+
 
 
 dlnet = dlnetwork(lgraph);
@@ -168,10 +183,16 @@ dlnet = dlnetwork(lgraph);
 % imReal = imread('test1.jpg');
 % imReal = imread('test.png');
 % imReal = imread('test2.jpg');
-imReal = imread('IMG_0979.JPG');
+% imReal = imread('IMG_0979.JPG');
 % imReal = imread('IMG_0981.JPG');
 % imReal = imread('IMG_0982.JPG');
 % imReal = imread('IMG_1005.JPG');
+% imReal = imread('IMG_1044.JPG');
+% imReal = imread('IMG_1045.JPG');
+% imReal = imread('IMG_1046.JPG');
+% imReal = imread('IMG_1047.JPG');
+imReal = imread('data/6936B5EB-FEDD-4FFC-9437-EFE9BB846278.JPG');
+
 
 % imReal = imread('0057.jpg');
 
@@ -192,11 +213,11 @@ dlnetOld = dlnet;
 
 %% train
 % clearCache(dlnet)
-dlnet = dlnetOld;
+% dlnet = dlnetOld;
 
-initialLearnRate = 2e0;
+initialLearnRate = 1e0;
 decay = 0.0001;
-momentum = 0.9;
+momentum = 0.95;
 velocity = [];
 iteration = 0;
 
@@ -207,7 +228,7 @@ averageSqGrad = [];
 while 1
     tic
 
-    [loss, gradients, state] = dlfeval(@simpleModelGradients, dlnet, Z, img);
+    [loss, gradients, state] = dlfeval(@simpleModelGradients, dlnet, Z, img, objects);
     dlnet.State = state;
     loss
     % Determine learning rate for time-based decay learning rate schedule.
@@ -238,8 +259,16 @@ while 1
 end
 %%
 figure
-subplot(1,2,1)
+subplot(1,3,1)
 image(extractdata(img))
 
-subplot(1,2,2)
-plotRender(dlnet)
+subplot(1,3,2)
+imgRender = plotRender(dlnet);
+imgRender = double(imgRender)./255-.5;
+
+subplot(1,3,3)
+tmpImg = extractdata(img)-.5;
+base = .0001+sqrt(sum(tmpImg.^2, 3)).*sqrt(sum(imgRender.^2, 3));
+corr = sum(tmpImg.*imgRender, 3)./base;
+imshow(.999*corr)
+

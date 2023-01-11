@@ -16,8 +16,9 @@ classdef Nerf < handle
     methods(Access=private)
         function [img, depth] = removeBackground(obj, img, depth)
             img = img(:,:,1:size(img,3));
-            imgBlur = imgaussfilt(img,.5);
-            background_ind = any(imgBlur > .04, 3);
+%             imgBlur = imgaussfilt(img,.5);
+%             background_ind = any(imgBlur > .04, 3);
+            background_ind = depth ~= 0;
             img = img.*background_ind;
 %             depth = imgaussfilt(depth, .5);
 %             background_ind = any(img > .2, 3);

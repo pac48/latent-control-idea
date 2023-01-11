@@ -32,7 +32,8 @@ superGlue = SuperGlue();
 %     %     imshow(left_scale);
 % end
 %%
-img0 = imread('real_img.png');
+img0 = imread('boxRealTestCropped.jpg');
+% img0 = imread('real_img.png');
 % img0 = imread('new_nerf_1.png');
 % img0 = imread('3.png');
 % img0 = imresize(img0, [480 640]*.5);
@@ -40,7 +41,8 @@ img0 = imresize(img0, [480 640]);
 % img1 = imread('nerf_img.png');
 % img1 = imread('new_nerf_2.png');
 % img1 = imread('3_mask.png');
-img1 = imread('real_img_gimp.png');
+% img1 = imread('real_img_gimp.png');
+img1 = imread('boxNerfTestCropped.png');
 % img1 = imresize(img1, [480 640]*.5);
 img1 = imresize(img1, [480 640]);
 
