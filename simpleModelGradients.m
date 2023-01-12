@@ -1,9 +1,9 @@
-function [loss,gradients, state] = simpleModelGradients(dlnet, Z, img, objects)
+function [loss,gradients, state] = simpleModelGradients(dlnet, img, objects)
 % X: real scene image
 
-backgroundRealPoints2D = [];
-cupRealPoints2D = [];
-boxRealPoints2D = [];
+% backgroundRealPoints2D = [];
+% cupRealPoints2D = [];
+% boxRealPoints2D = [];
 
 % [realPoints2D, nerfPoints2D, state] = dlnet.predict(img);
 
@@ -34,8 +34,8 @@ boxRealPoints2D = [];
 %     boxTF, ...
 %     boxRealPoints2D, boxNerfPoints2D, ...
 %     state] = dlnet.predict(Z, img);
-
-[map, state] = getNetOutput(dlnet, Z, img);
+ind = 3;
+[map, state] = getNetOutput(dlnet, img(:,:,:, ind), dlarray(ind,'CB'));
 
 
 loss = 0;

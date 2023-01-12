@@ -6,13 +6,14 @@ filteredInds = [];
 
 
 imReal = imgaussfilt(imReal, 4); 
+imgNerfOrig = imgNerf;
 imgNerf = imgaussfilt(imgNerf, 4);
 
 score = 0;
 counter = 0;
 bestScore = score;
-while score < .8
-    if counter == 100
+while score < .85
+    if counter == 50
 %         bestScore
         return
     end
@@ -21,9 +22,9 @@ while score < .8
     model = fitModel([mkptsNerf(inds ,:) mkptsReal(inds,:)] - [w/2 h/2 w/2 h/2]); % model predicts real poins from nerf points
     [R, offset] = getTransform(model);
     
-    if norm(R) > 5 || norm(R) < 1/50
-        continue
-    end
+%     if norm(R) > 5 || norm(R) < 1/50
+%         continue
+%     end
     
     A = eye(3);
     A(1:2, 1:2) = R;
@@ -32,7 +33,8 @@ while score < .8
     tform = affinetform2d(A);
     centerOutput = affineOutputView(size(imgNerf), tform, "BoundsStyle","CenterOutput");
     imgNerfRot = imwarp(imgNerf, tform, 'OutputView', centerOutput);
-    inds = any(imgNerfRot > 0, 3);
+    imgNerfOrigRot = imwarp(imgNerfOrig, tform, 'OutputView', centerOutput);
+    inds = any(imgNerfOrigRot > 0, 3);
     
     imgNerfRot = ((double(imgNerfRot)./255)-.5).*inds;
     imRealMod = ((1/255)*double(imReal)-.5).*inds;
@@ -40,7 +42,7 @@ while score < .8
     base = .001 + sqrt(sum(imRealMod.^2, 3)).*sqrt(sum(imgNerfRot.^2, 3));
     R = sum(imRealMod.*imgNerfRot, 3)./base;
     tmp = R(inds);
-    percentiles = prctile(tmp, 10);
+    percentiles = prctile(tmp, 30);
     vals = tmp(tmp >= percentiles(1));
     score = mean(vals);
     bestScore = max(bestScore, score);
@@ -53,14 +55,15 @@ while score < .8
 %         imshow(R)
    
 end
-
-% figure(2)
-% subplot(1,3,1)
-% imshow(imRealMod+.5)
-% subplot(1,3,2)
-% imshow(imgNerfRot+.5)
-% subplot(1,3,3)
-% imshow(R)
+if false
+figure(2)
+subplot(1,3,1)
+imshow(imRealMod+.5)
+subplot(1,3,2)
+imshow(imgNerfRot+.5)
+subplot(1,3,3)
+imshow(R)
+end
 
 R = A(1:2, 1:2);
 fitVals = (R*(mkptsNerf - [w/2 h/2])' + offset)' - mkptsReal + [w/2 h/2];

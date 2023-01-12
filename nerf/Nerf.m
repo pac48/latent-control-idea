@@ -92,7 +92,8 @@ classdef Nerf < handle
         function [allT, allImgs] = name2Frame(obj, name)
             allT = obj.name2FrameMap(name);
             allNames = obj.name2FileMap(name);
-            allImgs = cellfun(@(x) imread(fullfile(obj.objects_file_path{1}, name, x{1})), allNames, 'UniformOutput', false);
+            allImgs = [];
+%             allImgs = cellfun(@(x) imread(fullfile(obj.objects_file_path{1}, name, x{1})), allNames, 'UniformOutput', false);
         end
 
         function [imgRender, imDepth] = render(obj, w, h, fov_x)

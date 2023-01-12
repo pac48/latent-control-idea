@@ -1,4 +1,4 @@
-classdef ConstLayer < nnet.layer.Layer & nnet.layer.Formattable
+classdef ConstLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
     properties(Learnable)
         w
     end
@@ -17,10 +17,14 @@ classdef ConstLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             layer.w = zeros(outputSize);
 
+            layer.h.structure.curInd = 1;
+
         end
 
         function Z = predict(layer, X)
-            Z = dlarray(layer.w, 'SCB');
+            assert(numel(X)==1)
+            layer.h.structure.curInd = floor(X);
+            Z = dlarray(layer.w(:,:,X), 'SSB'); % rpyxyz x allT x batch
         end
 
     end

@@ -1,40 +1,38 @@
-function img = plotRender(dlnet)
+function img = plotRender(dlnet, imgInd)
 layers = dlnet.Layers;
 hold off
 for layer = layers'
-    if isa(layer, 'NerfLayer')
-        if ~isfield(layer.h.structure, layer.Name)
+    if isa(layer, 'NerfLayer') && strcmp('nerf_background', layer.objNames{1})
+        if ~isfield(layer.h.structure, layer.Name)  || imgInd > length(layer.h.structure.(layer.Name).imgNerf)
             continue
         end
-        imgNerfBest = layer.h.structure.(layer.Name).imgNerfBest;
-        if ~isempty(imgNerfBest)
-
-            if strcmp('nerf_background', layer.objNames{1})
-                image(imgNerfBest)
-            end
+        imgNerf = layer.h.structure.(layer.Name).imgNerf{imgInd};
+        if ~isempty(imgNerf)
+                image(imgNerf)
+                img = imgNerf;
         end
     end
 end
 hold on
-img = imgNerfBest;
+
 
 for layer = layers'
     if isa(layer, 'NerfLayer')
-        if ~isfield(layer.h.structure, layer.Name)
+        if ~isfield(layer.h.structure, layer.Name) || imgInd > length(layer.h.structure.(layer.Name).imgNerf)
             continue
         end
-        imgNerfBest = layer.h.structure.(layer.Name).imgNerfBest;
-        if ~isempty(imgNerfBest)
+        imgNerf = layer.h.structure.(layer.Name).imgNerf{imgInd};
+        if ~isempty(imgNerf)
 %             if strcmp('nerf_cup', layer.objNames{1})
-                background_ind = sum(imgNerfBest,3) ~= 0;
-                image(imgNerfBest, 'AlphaData', background_ind)
+                background_ind = sum(imgNerf,3) ~= 0;
+                image(imgNerf, 'AlphaData', background_ind)
                 set(gca, 'YDir','reverse')
 
-                img = img.*uint8(1-background_ind) + imgNerfBest.*uint8(background_ind);
+                img = img.*uint8(1-background_ind) + imgNerf.*uint8(background_ind);
 
 %             elseif strcmp('nerf_box', layer.objNames{1})
-%                 background_ind = sum(imgNerfBest,3) ~= 0;                
-%                 image(imgNerfBest, 'AlphaData', background_ind)
+%                 background_ind = sum(imgNerf,3) ~= 0;                
+%                 image(imgNerf, 'AlphaData', background_ind)
 %             end
         end
 

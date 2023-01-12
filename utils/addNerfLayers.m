@@ -1,15 +1,17 @@
-function lgraph = addNerfLayers(lgraph, featureNet, nerf, loftr, objectCel, imageSize, fov,...
-    name_prefix, image_layer_name, global_tf_layer_name)
+function lgraph = addNerfLayers(lgraph, featureNet, nerf, objectCel, imageSize, fov,...
+    name_prefix, image_layer_name, ind_layer_name, global_tf_layer_name)
 
 [allT, ~] = nerf.name2Frame(objectCel{1});
 
-allT   = allT(floor(linspace(1,length(allT), 20 )));
+% allT   = allT(floor(linspace(1,length(allT), 20 )));
 
 numTransforms = length(allT);
 % knnLayer = fullyConnectedLayer((6)*numTransforms, 'Name', [name_prefix 'FCLayer']);
-knnLayer = ConstLayer([name_prefix 'ConstLayer'], [(6)*numTransforms 1]);
+maxBatchSize = 5;
+knnLayer = ConstLayer([name_prefix 'ConstLayer'], [6 numTransforms maxBatchSize]);
+nerfLayer = NerfLayer([name_prefix 'NerfLayer'], allT, objectCel, imageSize(1), imageSize(2), fov);
+% prerender transforms
 
-nerfLayer = NerfLayer([name_prefix 'NerfLayer'], nerf, loftr, objectCel, imageSize(1), imageSize(2), fov);
 tfOffsetLayer = TFOffsetLayer([name_prefix 'TFOffsetLayer'], allT);
 tfLayer = TFLayer([name_prefix 'TFLayer']);
 [fl, fx,fy] = nerfLayer.getFValues();
@@ -44,6 +46,7 @@ lgraph = lgraph.connectLayers(knnLayer.Name, [tfOffsetLayer.Name '/' tfOffsetLay
 
 lgraph = lgraph.connectLayers([tfOffsetLayer.Name '/' tfOffsetLayer.OutputNames{2}], [nerfLayer.Name '/' nerfLayer.InputNames{1}]);
 lgraph = lgraph.connectLayers(image_layer_name, [nerfLayer.Name '/' nerfLayer.InputNames{2}]);
+% lgraph = lgraph.connectLayers(ind_layer_name, [nerfLayer.Name '/' nerfLayer.InputNames{3}]);
 
 lgraph = lgraph.connectLayers([nerfLayer.Name '/' nerfLayer.OutputNames{1}], [tfLayer.Name '/' tfLayer.InputNames{1}]);
 lgraph = lgraph.connectLayers([tfOffsetLayer.Name '/' tfOffsetLayer.OutputNames{1}], [tfLayer.Name '/' tfLayer.InputNames{2}]);

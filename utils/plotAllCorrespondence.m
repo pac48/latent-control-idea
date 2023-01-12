@@ -1,4 +1,4 @@
-function plotAllCorrespondence(dlnet)
+function plotAllCorrespondence(dlnet, imgInd)
 layers = dlnet.Layers;
 count = 0;
 for layer = layers'
@@ -9,16 +9,18 @@ end
 ind = 0;
 for layer = layers'
     if isa(layer, 'NerfLayer')
-        ind = ind+1;
-        imRealBest = layer.h.structure.(layer.Name).imRealBest;
-        imgNerfBest = layer.h.structure.(layer.Name).imgNerfBest;
-        mkptsRealBest = layer.h.structure.(layer.Name).mkptsRealBest;
-        mkptsNerfBest = layer.h.structure.(layer.Name).mkptsNerfBest;
-        mconfBest = layer.h.structure.(layer.Name).mconfBest;
-        jBest = layer.h.structure.(layer.Name);
+        if imgInd > length(layer.h.structure.(layer.Name).mkptsNerf)
+            continue
+        end
+        imRealBest = layer.h.structure.(layer.Name).imReal{imgInd};
+        imgNerfBest = layer.h.structure.(layer.Name).imgNerf{imgInd};
+        mkptsRealBest = layer.h.structure.(layer.Name).mkptsReal{imgInd};
+        mkptsNerfBest = layer.h.structure.(layer.Name).mkptsNerf{imgInd};
+        mconfBest = layer.h.structure.(layer.Name).mconf{imgInd};
         if isempty(mkptsNerfBest)
             continue
         end
+        ind = ind+1;
 
         %         if ~isempty(mkptsRealBest)
         %             hold off
