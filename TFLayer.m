@@ -6,6 +6,7 @@ classdef TFLayer < nnet.layer.Layer & nnet.layer.Formattable
             % Set layer name.
             layer.Name = name;%'TFLayer';
             layer.InputNames = {'in1', 'in2'};
+            layer.OutputNames = {'out1', 'points_cam'};
 
             % Set layer description.
             layer.Description = "Transform 3D point from one frame to another";
@@ -15,7 +16,7 @@ classdef TFLayer < nnet.layer.Layer & nnet.layer.Formattable
 
         end
 
-        function Z = predict(layer, points, X)
+        function [Z, pointsCam] = predict(layer, points, X)
             % X: T (16 x batch) this is transform from world to camera
             % coordinates
             % points: 3d points (3 x n x batch)
@@ -25,13 +26,20 @@ classdef TFLayer < nnet.layer.Layer & nnet.layer.Formattable
                 X = eye(4);
             end
 
-            T = reshape(X, 4, 4, []);
-
+            if size(X, 1) == 6 % convert to T 
+                X = reshape(X, 6,1,[]);
+                T = getT(X(1:3,:), X(4:6,:));
+            else
+                T = reshape(X, 4, 4, []);
+            end
+            % T world to cam
+            
             points = extractdata(points(1:3,:,:));
             points = reshape(points, 3, []);
-%             Z = pagemtimes(T(1:3, 1:3, :), points) + T(1:3, end, :);
-            Z = T(1:3, 1:3, :)*points + T(1:3, end, :);
+            pointsCam = T(1:3, 1:3, :)*points + T(1:3, end, :);
+            Z = pointsCam;
             Z = dlarray(Z, 'SSB');
+            pointsCam = dlarray(pointsCam, 'SSB');
             %             mean(points,2)
         end
 

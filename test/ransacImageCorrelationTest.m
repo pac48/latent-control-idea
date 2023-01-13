@@ -4,9 +4,9 @@ addpath('nerf/')
 addpath('utils/')
 addpath('utils/ransac2d/')
 
-load('blue_block_test_data.mat')
+% load('blue_block_test_data.mat')
 % load('blue_block_test_data2.mat')
-% load('book_test_data.mat')
+load('book_test_data.mat')
 
 %% least sqaures
 close all

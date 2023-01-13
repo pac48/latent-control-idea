@@ -23,7 +23,9 @@ classdef ConstLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         function Z = predict(layer, X)
             assert(numel(X)==1)
-            layer.h.structure.curInd = floor(X);
+%             layer.h.structure.curInd = floor(X);
+            global curInd
+            curInd = floor(X);
             Z = dlarray(layer.w(:,:,X), 'SSB'); % rpyxyz x allT x batch
         end
 

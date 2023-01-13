@@ -113,3 +113,13 @@ for i = 1:length(allMsg)
     pause(.1)
 
 end
+
+%%
+gripperPub = rospublisher('/gripper_command')
+msg = rosmessage(gripperPub)
+
+msg.Data = false
+send(gripperPub, msg)
+
+msg.Data = true
+send(gripperPub, msg)

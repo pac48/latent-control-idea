@@ -120,9 +120,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                             inds{b} = i;
                             foundAngles{b} = angle;
                         end
-                        if numPoint >= 10 && ~contains(layer.Name, 'background')
-                            break;
-                        end
+%                         if numPoint >= 10 && ~contains(layer.Name, 'background')
+%                             break;
+%                         end
                     end
                     if numPoint ~=2
                         break;
@@ -314,18 +314,26 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             Z1 = dlarray(zeros(4, 1, 1), 'SSB');
             Z2 = dlarray(zeros(2, 1, 1),'SSB'); % real points
 
-            if all(Tin(:,:,1)==1,'all')
+            global curInd
+
+            if all(Tin(:,:,1)==1,'all') % || isempty(layer.h.structure.(layer.Name).indT) %|| curInd > length(layer.h.structure.(layer.Name).indT)
                 return
             end
 
+           if size(Tin, 1) == 6 % convert to T 
+                Tin = reshape(Tin, 6,1,[]);
+                Tin = getT(Tin(1:3,:), Tin(4:6,:));
+            else
+                Tin = reshape(Tin, 4, 4, []);
+            end
 
-            curInd = layer.h.structure.curInd;
-            inds = layer.h.structure.(layer.Name).indT{curInd};
-%             assert(length(inds)==size(Tin,3))
-            angle = layer.h.structure.(layer.Name).angle{curInd};
+%             curInd = layer.h.structure.curInd;
+%             inds = layer.h.structure.(layer.Name).indT{curInd};
+%             angle = layer.h.structure.(layer.Name).angle{curInd};
+            angle = 0;
 
             skipNerf = layer.h.structure.(layer.Name).skipNerf;
-            if ~skipNerf && ~isempty(inds)
+            if ~skipNerf %&& ~isempty(inds)
 %                 for b =  1:size(Tin, 3)
 %                     if isempty(inds)
 %                         break;
@@ -335,7 +343,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                     
                     layer.h.structure.(layer.Name).imgNerf{curInd} = imgNerf;
                     layer.h.structure.(layer.Name).imReal{curInd} = imReal;    
-                    if ~isempty(points) && size(points, 2) >=  5 %size(layer.h.structure.(layer.Name).points, 2)
+                    if ~isempty(points) && size(points, 2) >=  3 %size(layer.h.structure.(layer.Name).points, 2)
                         layer.h.structure.(layer.Name).depthNerf{curInd} = [];
                         layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
                         layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
@@ -356,12 +364,12 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 %         end
             end
 
-            if isempty(layer.h.structure.(layer.Name).points{curInd})
+            if curInd > length(layer.h.structure.(layer.Name).points) || isempty(layer.h.structure.(layer.Name).points{curInd})
                 %                     subplot(1,2,1)
                 %                     imshow(imReal)
                 %                     subplot(1,2,2)
                 %                     imshow(imgNerf)
-                warning('bad bad')
+%                 warning('bad bad')
             else
                 tmp = layer.h.structure.(layer.Name);
                 mkptsReal = tmp.mkptsReal{curInd};

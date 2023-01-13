@@ -15,8 +15,8 @@ classdef NerfObject < handle
         % server3 = ZMQ_Server(5563, 100, 'nerf_background');
         function obj = NerfObject(name)
             map = containers.Map( ...
-                {'nerf_box', 'nerf_cup', 'nerf_background', 'nerf_book', 'nerf_iphone_box', 'nerf_plate', 'nerf_blue_block'}, ...
-                { 5559, 5561, 5563, 5565, 5567, 5569, 5571});
+                {'nerf_box', 'nerf_cup', 'nerf_background', 'nerf_book', 'nerf_iphone_box', 'nerf_plate', 'nerf_blue_block', 'nerf_fork'}, ...
+                { 5559, 5561, 5563, 5565, 5567, 5569, 5571, 5573});
             port = map(name);
             obj.server = ZMQ_Server(port, 1, name);
             pause(.5)

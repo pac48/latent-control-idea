@@ -7,7 +7,7 @@ function lgraph = addNerfLayers(lgraph, featureNet, nerf, objectCel, imageSize, 
 
 numTransforms = length(allT);
 % knnLayer = fullyConnectedLayer((6)*numTransforms, 'Name', [name_prefix 'FCLayer']);
-maxBatchSize = 5;
+maxBatchSize = 10;
 knnLayer = ConstLayer([name_prefix 'ConstLayer'], [6 numTransforms maxBatchSize]);
 nerfLayer = NerfLayer([name_prefix 'NerfLayer'], allT, objectCel, imageSize(1), imageSize(2), fov);
 % prerender transforms
@@ -51,7 +51,7 @@ lgraph = lgraph.connectLayers(image_layer_name, [nerfLayer.Name '/' nerfLayer.In
 lgraph = lgraph.connectLayers([nerfLayer.Name '/' nerfLayer.OutputNames{1}], [tfLayer.Name '/' tfLayer.InputNames{1}]);
 lgraph = lgraph.connectLayers([tfOffsetLayer.Name '/' tfOffsetLayer.OutputNames{1}], [tfLayer.Name '/' tfLayer.InputNames{2}]);
 
-lgraph = lgraph.connectLayers(tfLayer.Name, projectionLayer.Name);
+lgraph = lgraph.connectLayers([tfLayer.Name '/' tfLayer.OutputNames{1}], projectionLayer.Name);
 
 end
 

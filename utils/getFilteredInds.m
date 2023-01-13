@@ -5,15 +5,15 @@ s = RandStream('mlfg6331_64');
 filteredInds = [];
 
 
-imReal = imgaussfilt(imReal, 4); 
+imReal = imgaussfilt(imReal, 3); 
 imgNerfOrig = imgNerf;
-imgNerf = imgaussfilt(imgNerf, 4);
+imgNerf = imgaussfilt(imgNerf, 3);
 
 score = 0;
 counter = 0;
 bestScore = score;
 while score < .85
-    if counter == 50
+    if counter == 10
 %         bestScore
         return
     end
@@ -41,8 +41,10 @@ while score < .85
     
     base = .001 + sqrt(sum(imRealMod.^2, 3)).*sqrt(sum(imgNerfRot.^2, 3));
     R = sum(imRealMod.*imgNerfRot, 3)./base;
+
+    R = 1-sum(abs(imRealMod - imgNerfRot),3)./3;
     tmp = R(inds);
-    percentiles = prctile(tmp, 30);
+    percentiles = prctile(tmp, 10);
     vals = tmp(tmp >= percentiles(1));
     score = mean(vals);
     bestScore = max(bestScore, score);
@@ -52,7 +54,7 @@ while score < .85
 %         subplot(1,3,2)
 %         imshow(imgNerfRot+.5)
 %         subplot(1,3,3)
-%         imshow(R)
+%         imshow(R.*inds)
    
 end
 if false

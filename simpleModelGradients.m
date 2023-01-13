@@ -1,4 +1,4 @@
-function [loss,gradients, state] = simpleModelGradients(dlnet, img, objects)
+function [loss,gradients, state, Tall] = simpleModelGradients(dlnet, img, objects)
 % X: real scene image
 
 % backgroundRealPoints2D = [];
@@ -34,26 +34,29 @@ function [loss,gradients, state] = simpleModelGradients(dlnet, img, objects)
 %     boxTF, ...
 %     boxRealPoints2D, boxNerfPoints2D, ...
 %     state] = dlnet.predict(Z, img);
-ind = 3;
-[map, state] = getNetOutput(dlnet, img(:,:,:, ind), dlarray(ind,'CB'));
-
-
+Tall = cell(1, length(objects));
 loss = 0;
-% objects = {'background', 'book'};
 
-for object = objects
+for ind = 1:size(img,4)
+    [map, state] = getNetOutput(dlnet, img(:,:,:, ind), dlarray(ind,'CB'));
     
-    T = getObjectTransforms(dlnet, map, object{1});
-    [mkptsNerf, mkptsReal] = getObjectPoints(map, object{1});
+    for i = 1:length(objects)
+        object = objects{i};
 
-    if numel(mkptsReal) > 2 && strcmp(object{1}, 'background')
-        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
-%         loss = loss + backgroundLoss;
-    elseif numel(mkptsReal) > 2
-        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
-%         loss = loss + cupLoss;
+        T = getObjectTransforms(dlnet, map, object);
+        Tall{i} = cat(3, Tall{i}, T);
+
+        [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
+
+        if numel(mkptsReal) > 2 && strcmp(object, 'background')
+            loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
+            %         loss = loss + backgroundLoss;
+        elseif numel(mkptsReal) > 2
+            loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 1000);
+            %         loss = loss + cupLoss;
+        end
+
     end
-
 end
 
 
@@ -87,22 +90,22 @@ loss = double(loss);
 % drawnow
 end
 
-function loss = getObjectLoss(realPoints2D, nerfPoints2D, meanPenalty, rotPenalty)
-realPoints2D = dlarray(gather(extractdata(realPoints2D)), 'SSB');
-nerfPoints2DMean = mean(nerfPoints2D,2);
-realPoints2DMean = mean(realPoints2D,2);
-nerfPoints2DZero = nerfPoints2D - nerfPoints2DMean;
-realPoints2DZero = realPoints2D - realPoints2DMean;
-
-tmp = nerfPoints2DMean - realPoints2DMean;
-lmin = min([tmp.^2 abs(tmp)], [],2);
-loss = meanPenalty*sum(lmin, 'all');
-
-tmp = mean(abs(nerfPoints2DZero - realPoints2DZero),2);
-lmin = min([tmp.^2 abs(tmp)], [],2);
-loss = loss + rotPenalty*sum(lmin, 'all');
-
-% loss = loss + rotPenalty*sum( (nerfPoints2DZero - realPoints2DZero).^2, 'all');
-%     loss = loss./size(realPoints2D,2);
-%     loss = loss + loss;
-end
+% function loss = getObjectLoss(realPoints2D, nerfPoints2D, meanPenalty, rotPenalty)
+% realPoints2D = dlarray(gather(extractdata(realPoints2D)), 'SSB');
+% nerfPoints2DMean = mean(nerfPoints2D,2);
+% realPoints2DMean = mean(realPoints2D,2);
+% nerfPoints2DZero = nerfPoints2D - nerfPoints2DMean;
+% realPoints2DZero = realPoints2D - realPoints2DMean;
+% 
+% tmp = nerfPoints2DMean - realPoints2DMean;
+% lmin = min([tmp.^2 abs(tmp)], [],2);
+% loss = meanPenalty*sum(lmin, 'all');
+% 
+% tmp = mean(abs(nerfPoints2DZero - realPoints2DZero),2);
+% lmin = min([tmp.^2 abs(tmp)], [],2);
+% loss = loss + rotPenalty*sum(lmin, 'all');
+% 
+% % loss = loss + rotPenalty*sum( (nerfPoints2DZero - realPoints2DZero).^2, 'all');
+% %     loss = loss./size(realPoints2D,2);
+% %     loss = loss + loss;
+% end
