@@ -21,9 +21,11 @@ classdef TFLayer < nnet.layer.Layer & nnet.layer.Formattable
             % coordinates
             % points: 3d points (3 x n x batch)
             % Z: 3d points (3 x n x batch)
+            Z = dlarray([], 'SSB');
+            pointsCam = dlarray([], 'SSB');
 
-            if isempty(X)
-                X = eye(4);
+            if isempty(X) || isempty(points)
+                return
             end
 
             if size(X, 1) == 6 % convert to T 

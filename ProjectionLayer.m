@@ -30,6 +30,12 @@ classdef ProjectionLayer < nnet.layer.Layer & nnet.layer.Formattable
             % point: 3d points (3 x n x batch)
             % n is the number of detected key points
 
+            out = dlarray([], 'SSB');
+           
+            if isempty(points)
+                return
+            end
+
             X = points(1,:,:);
             Y = points(2,:,:);
             Z = points(3,:,:);

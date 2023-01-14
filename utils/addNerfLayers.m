@@ -1,13 +1,13 @@
 function lgraph = addNerfLayers(lgraph, featureNet, nerf, objectCel, imageSize, fov,...
     name_prefix, image_layer_name, ind_layer_name, global_tf_layer_name)
 
-[allT, ~] = nerf.name2Frame(objectCel{1});
+allT = nerf.name2Frame(objectCel{1});
 
 % allT   = allT(floor(linspace(1,length(allT), 20 )));
 
 numTransforms = length(allT);
 % knnLayer = fullyConnectedLayer((6)*numTransforms, 'Name', [name_prefix 'FCLayer']);
-maxBatchSize = 10;
+maxBatchSize = 100;
 knnLayer = ConstLayer([name_prefix 'ConstLayer'], [6 numTransforms maxBatchSize]);
 nerfLayer = NerfLayer([name_prefix 'NerfLayer'], allT, objectCel, imageSize(1), imageSize(2), fov);
 % prerender transforms

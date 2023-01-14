@@ -34,17 +34,24 @@ function [loss,gradients, state, Tall] = simpleModelGradients(dlnet, img, object
 %     boxTF, ...
 %     boxRealPoints2D, boxNerfPoints2D, ...
 %     state] = dlnet.predict(Z, img);
-Tall = cell(1, length(objects));
+
 loss = 0;
+
+objects = getObjects(dlnet);
+
+Tall = containers.Map(objects, repmat({{}}, 1, length(objects)));
+
 
 for ind = 1:size(img,4)
     [map, state] = getNetOutput(dlnet, img(:,:,:, ind), dlarray(ind,'CB'));
     
     for i = 1:length(objects)
         object = objects{i};
-
         T = getObjectTransforms(dlnet, map, object);
-        Tall{i} = cat(3, Tall{i}, T);
+        Tall(object) = cat(2, Tall(object), {T});
+        if isempty(T)
+            continue
+        end
 
         [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
 

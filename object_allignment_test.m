@@ -38,8 +38,6 @@ if buildNetword
     inLayer = net.Layers(1);
     imageInput = imageInputLayer([imageSize(1:2) 3],'name','image_input', 'Normalization','none');
     featurePreLayers = [...
-        %     imageInputLayer([imageSize(1:2) 3],'name','image_input', 'Normalization','zscore', 'Mean', ...
-        %     inLayer.Mean,'StandardDeviation', inLayer.StandardDeviation);
         imageInput
         resize2dLayer('OutputSize', [224 224], 'name', 'resize', 'Method','bilinear')
         ];
@@ -47,20 +45,19 @@ if buildNetword
     featurePostLayers = [...
         convolution2dLayer([1 1], 1, 'Stride', 1, 'Name','featurePostLayerIn')
         functionLayer(@(x) dlarray(reshape(x, [], size(x,4)), 'CB'), 'Name','featurePostLayer', 'Formattable',true)
-%         functionLayer(@(x) dlarray(sin(2000*reshape(x, [], size(x,4))), 'CB'), 'Name','featurePostLayer', 'Formattable',true)
         ];
 
 
     lgraph = net.layerGraph;
     layers = lgraph.Layers;
-    for i = 20:length(layers)
+    for i = 70:length(layers) %20:length(layers)
         lgraph = lgraph.removeLayers(layers(i).Name);
     end
     lgraph = lgraph.removeLayers('data');
     lgraph = lgraph.addLayers(featurePreLayers);
     lgraph = lgraph.connectLayers('resize', 'conv1');
-    lgraph = lgraph.addLayers(featurePostLayers);
-    lgraph = lgraph.connectLayers(lgraph.Layers(end-4,:).Name, 'featurePostLayerIn');
+    %     lgraph = lgraph.addLayers(featurePostLayers);
+    %     lgraph = lgraph.connectLayers(lgraph.Layers(end-4,:).Name, 'featurePostLayerIn');
 
     featureNet = dlnetwork(lgraph);
     out = featureNet.predict(dlarray(zeros(10,10,3),'SSCB'));
@@ -71,8 +68,10 @@ if buildNetword
     lgraph = lgraph.addLayers(featureInput);
     for object = allObjects
         name = object{1};
-        TFLayerOut = fullyConnectedLayer(6, "Name", [name '_TF']);
+        TFLayerOut = fullyConnectedLayer(6, "Name", [name '_TF_FC_Layer']);
         scaleLayer = functionLayer(@(x) .001*x, 'Name', [name 'scaleLayer']);
+        dummyLayer1 = DummyLayer([name '_nerf_T_world_2_cam']);
+        dummyLayer2 = DummyLayer([name '_TF']);
         lgraph = lgraph.addLayers(TFLayerOut);
         lgraph = lgraph.addLayers(scaleLayer);
         lgraph = lgraph.connectLayers(featureInput.Name, scaleLayer.Name);
@@ -96,13 +95,114 @@ if buildNetword
         name = object{1};
         lgraph = addNerfLayers(lgraph, featureNet, nerf, {['nerf_' name]}, imageSize, fov, ...
             [name '_nerf_'], image_layer_name, ind_layer_name, feature_layer_name);
+
+        TFDummyName = [name '_nerf_T_world_2_cam'];
+        TOffset_T_Name = [name '_nerf_TFOffsetLayer/T'];
+        dummyLayer = DummyLayer(TFDummyName);
+        lgraph = lgraph.addLayers(dummyLayer);
+        lgraph = lgraph.connectLayers(TOffset_T_Name, TFDummyName);
     end
 
     dlnet = dlnetwork(lgraph);
     save('dlnetInit', 'dlnet', '-v7.3')
     save('featureNet', 'featureNet')
-    save('TFNet', 'TFNet')
+    %     save('TFNet', 'TFNet')
     %%
+
+
+    %% pre-train TFnet
+
+    preTrainObjects = allObjects(2:end);
+
+    tmp = nerf.name2Images(['nerf_' preTrainObjects{1}]);
+    tmp = cellfun(@(x) double(imresize(x, imageSize))./255, tmp, 'UniformOutput', false);
+    tmp = cellfun(@(x) dlarray(double(x), 'SSCB'), tmp,  'UniformOutput', false);
+    imgs = cat(4, tmp{:});
+
+    allAllT = cell(1, length(preTrainObjects));
+    for i = 1:length(preTrainObjects)
+        object = preTrainObjects{i};
+        T = nerf.name2Frame(['nerf_' object]);
+        for j = 1:length(T)
+            T{j} = inv(T{j});
+        end
+        allAllT{i} = T;
+    end
+
+    Tall = containers.Map(preTrainObjects, allAllT);
+    allZ = featureNet.predict(imgs);
+
+
+    preTrainObjects = allObjects(1);
+
+    tmp = nerf.name2Images(['nerf_' preTrainObjects{1}]);
+    tmp = cellfun(@(x) double(imresize(x, imageSize))./255, tmp, 'UniformOutput', false);
+    tmp = cellfun(@(x) dlarray(double(x), 'SSCB'), tmp,  'UniformOutput', false);
+    imgsBackground = cat(4, tmp{:});
+
+    allAllTimgsBackground = cell(1, length(preTrainObjects));
+    for i = 1:length(preTrainObjects)
+        object = preTrainObjects{i};
+        T = nerf.name2Frame(['nerf_' object]);
+        for j = 1:length(T)
+            T{j} = inv(T{j});
+        end
+        allAllTimgsBackground{i} = T
+    end
+
+    TallimgsBackground = containers.Map(preTrainObjects, allAllTimgsBackground);
+    allZimgsBackground = featureNet.predict(imgsBackground);
+
+
+
+    %% pre-train TFnet
+
+    initialLearnRateTF = 4e-3;
+    decayTF = 0.000005;
+    momentumTF = 0.999;
+    velocityTF = [];
+    iteration = 0;
+
+    noiseLevel = 0.00;
+
+    while 1
+        tic
+
+        [lossTF, gradients, state] = dlfeval(@simpleTFModelGradients, TFNet, allZ + noiseLevel*(rand(size(allZ))-.5), Tall);
+        lossTF
+        learnRateTF = initialLearnRateTF/(1 + decayTF*iteration);
+        [TFNet, velocityTF] = sgdmupdate(TFNet, gradients, velocityTF, learnRateTF, momentumTF);
+
+        [lossBackground, gradients, state] = dlfeval(@simpleTFModelGradients, TFNet, allZimgsBackground + noiseLevel*(rand(size(allZimgsBackground))-.5), TallimgsBackground);
+        lossBackground
+        learnRateTF = initialLearnRateTF/(1 + decayTF*iteration);
+        [TFNet, velocityTF] = sgdmupdate(TFNet, gradients, velocityTF, learnRateTF, momentumTF);
+
+        iteration = iteration + 1;
+        toc
+
+    end
+
+    save('PreTrainedTFNet', 'TFNet')
+
+    %%
+
+    lgraph = TFNet.layerGraph;
+    for object = allObjects
+        name = object{1};
+        TFLayerOutName = [name '_TF_FC_Layer'];
+
+        dummyLayer1 = DummyLayer([name '_nerf_T_world_2_cam']);
+        dummyLayer2 = DummyLayer([name '_TF']);
+        lgraph = lgraph.addLayers(dummyLayer1);
+        lgraph = lgraph.addLayers(dummyLayer2);
+        lgraph = lgraph.connectLayers(TFLayerOutName, dummyLayer1.Name);
+        lgraph = lgraph.connectLayers(TFLayerOutName, dummyLayer2.Name);
+    end
+
+    TFNet = dlnetwork(lgraph);
+    save('TFNet', 'TFNet')
+
 end
 
 %% load init net
@@ -153,6 +253,7 @@ T = dlarray(T, 'SSB');
 
 
 objects = {'background', 'book', 'iphone_box'}; % 'fork' 'blue_block',
+setDetectObjects(dlnet, objects)
 for object = objects
     findInitMatch(dlnet, imgs, object{1})
 end
@@ -207,41 +308,16 @@ while 1
 
 end
 
-%% train
-initialLearnRateTF = 1e-1;
-decayTF = 0.000005;
-momentumTF = 0.95;
-velocityTF = [];
-
-iteration = 0;
-
-averageGrad = [];
-averageSqGrad = [];
-
-while 1
-    tic
-
-    [lossTF, gradients, state] = dlfeval(@TFModelGradients, TFNet, Z + .1*(rand(size(Z))-.5), Tall, objects, allObjects);
-    lossTF
-    learnRateTF = initialLearnRateTF/(1 + decayTF*iteration);
-    [TFNet, velocityTF] = sgdmupdate(TFNet, gradients, velocityTF, learnRateTF, momentumTF);
-
-    iteration = iteration + 1;
-    toc
-
-end
-
-
 %% construct end to end TF net
 lgraph = dlnet.layerGraph
 
 feature_layer_name = 'feature_input';
-lgraph = removeLayers(lgraph, feature_layer_name)
+lgraph = removeLayers(lgraph, feature_layer_name);
 l = 1;
 while l <= length(lgraph.Layers)
     layer = lgraph.Layers(l);
     if isa(layer, 'ConstLayer')
-        lgraph = lgraph.removeLayers(layer.Name)
+        lgraph = lgraph.removeLayers(layer.Name);
     end
     l = l+1;
 end
@@ -249,31 +325,75 @@ l = 1;
 while l <= length(lgraph.Layers)
     layer = lgraph.Layers(l);
     if isa(layer, 'TFOffsetLayer')
-        lgraph = lgraph.removeLayers(layer.Name)
+        lgraph = lgraph.removeLayers(layer.Name);
     end
     l = l+1;
 end
 
 for l = 1:length(TFNet.Layers)
-    lgraph = lgraph.addLayers(TFNet.Layers(l))
+    layer = TFNet.Layers(l);
+    if ~isa(layer, 'DummyLayer') % || contains(layer.Name, 'T_world_2_cam')
+        lgraph = lgraph.addLayers(layer);
+    end
 end
+
 
 for object = allObjects
     name = object{1};
-    TFname = [name '_TF'];
-    Scalename = [name 'scaleLayer']
+    TFname = [name '_TF_FC_Layer'];
+    Scalename = [name 'scaleLayer'];
     Nerfname = [name '_nerf_NerfLayer/in1'];
     TFLayername = [name '_nerf_TFLayer/in2'];
+    TFDummyName = [name '_nerf_T_world_2_cam'];
+    %     PointCamName = [name '_nerf_TFLayer/points_cam'];
+    %     DummyPointCamName = [name '_nerf_TFLayer/points_cam'];
+
+    %             dummyLayer1 = DummyLayer([name '_nerf_T_world_2_cam']);
+    %         dummyLayer2 = DummyLayer([name '_TF']);
+    %         lgraph = lgraph.addLayers(dummyLayer1);
+    %         lgraph = lgraph.addLayers(dummyLayer2);
+
     lgraph = lgraph.connectLayers(feature_layer_name, Scalename);
     lgraph = lgraph.connectLayers(Scalename, TFname);
     lgraph = lgraph.connectLayers(TFname, Nerfname);
     lgraph = lgraph.connectLayers(TFname, TFLayername);
+
+    lgraph = lgraph.connectLayers(TFname, TFDummyName);
+
 end
 close all
 plot(lgraph)
 
 FullTFNet = dlnetwork(lgraph)
 % save('FullTFNet', 'FullTFNet', '-v7.3')
+
+%% train TF
+initialLearnRateTF = 5e-2;
+decayTF = 0.000005;
+momentumTF = 0.99;
+velocityTF = [];
+
+iteration = 0;
+
+averageGrad = [];
+averageSqGrad = [];
+
+setDetectObjects(FullTFNet, {})
+
+while 1
+    tic
+
+    [lossTF, gradients, state] = dlfeval(@TFModelGradients, FullTFNet, imgs, Z + .01*(rand(size(Z))-.5), Tall);
+    lossTF
+    learnRateTF = initialLearnRateTF/(1 + decayTF*iteration);
+    [FullTFNet, velocityTF] = sgdmupdate(FullTFNet, gradients, velocityTF, learnRateTF, momentumTF);
+
+    iteration = iteration + 1;
+    toc
+
+end
+
+
 %% test predict
 % imd = imageDatastore('data_validation/');
 imd = imageDatastore('data/');
@@ -285,6 +405,8 @@ Z = featureNet.predict(imgs);
 numImages = size(imgs,4);
 
 clearCache(FullTFNet)
+setDetectObjects(FullTFNet, objects)
+
 % plot(Z)
 
 for ind = 1:numImages
@@ -320,7 +442,7 @@ for ind = 1:numImages
     pause(1)
     plotAllCorrespondence(FullTFNet, ind)
     pause(1)
-    
+
 end
 
 %%
@@ -370,11 +492,11 @@ end
 %     figure
 %     subplot(1,3,1)
 %     image(extractdata(imgs(:,:,:,ind)))
-% 
+%
 %     subplot(1,3,2)
 %     imgRender = plotRender(dlnet, ind);
 %     imgRender = double(imgRender)./255;
-% 
+%
 %     subplot(1,3,3)
 %     tmpImg = extractdata(imgs(:,:,:,ind));
 %     %     base = .0001+sqrt(sum(tmpImg.^2, 3)).*sqrt(sum(imgRender.^2, 3));
@@ -384,37 +506,37 @@ end
 %     corr = corr -.5;
 %     corr(corr < 0) = 0;
 %     corr = corr*(1/max(corr,[],"all"));
-% 
+%
 %     imshow(corr)
-% 
+%
 % end
 %%
 figure
 for ind = 1:size(imgs, 4)
-     curInd = ind;
-%     [map, state] = getNetOutput(FullTFNet, imgs(:,:,:, ind), dlarray(ind,'CB'));
-     [map, state] = getNetOutput(FullTFNet, imgs(:,:,:, ind), Z(:,ind));
-    
+    curInd = ind;
+    %     [map, state] = getNetOutput(FullTFNet, imgs(:,:,:, ind), dlarray(ind,'CB'));
+    [map, state] = getNetOutput(FullTFNet, imgs(:,:,:, ind), Z(:,ind));
+
     pointsCam = 0.3011*extractdata(map('iphone_box_nerf_TFLayer/points_cam'));
-%     pointsCam = 0.3074*extractdata(map('book_nerf_TFLayer/points_cam'));
+    %     pointsCam = 0.3074*extractdata(map('book_nerf_TFLayer/points_cam'));
     % pointsCam = extractdata(map('background_nerf_TFLayer/points_cam'));
     pointCam = mean(pointsCam, 2);
 
-    rpyxyz = extractdata(TFNet.predict(Z(:, ind)));
-    T = getT(rpyxyz(1:3), rpyxyz(4:6));
-
-%     T = map('background_nerf_TFOffsetLayer/T'); % world to cam
+    %     rpyxyz = extractdata(TFNet.predict(Z(:, ind)));
+    rpyxyz = extractdata(map('background_nerf_T_world_2_cam')); % world to cam
+    T = getT(rpyxyz(1:3), rpyxyz(4:6)); % world to cam
     T = inv(T); % cam to world
 
     point = T(1:3,1:3)*pointCam + T(1:3, end);
 
-    points = T(1:3,1:3)*pointsCam + T(1:3, end)
+    points = T(1:3,1:3)*pointsCam + T(1:3, end);
     hold on
     plot3(points(1, :), points(2, :), points(3, :), 'marker','.', 'MarkerSize',20)
     plot3(point(1, :), point(2, :), point(3, :), 'marker','.', 'MarkerSize',40)
-%     plot3(pointsCam(1, :), pointsCam(2, :), pointsCam(3, :), 'marker','.', 'MarkerSize',20)
-%     plot3(pointCam(1, :), pointCam(2, :), pointCam(3, :), 'marker','.', 'MarkerSize',40)
-plot3(T(1, end), T(2, end), T(3, end), 'marker','.', 'MarkerSize',50)
+    %     plot3(pointsCam(1, :), pointsCam(2, :), pointsCam(3, :), 'marker','.', 'MarkerSize',20)
+    %     plot3(pointCam(1, :), pointCam(2, :), pointCam(3, :), 'marker','.', 'MarkerSize',40)
+    plot3(T(1, end), T(2, end), T(3, end), 'marker','.', 'MarkerSize',50)
+    T
 end
 % plot3(T(1, end), T(2, end), T(3, end), 'marker','.', 'MarkerSize',50)
 
@@ -435,7 +557,7 @@ l2 = norm(p1-p2)
 
 l2/l1
 
-% width: real value 1.143
+% real width of table:  value 1.143
 p1 = [0.580,-0.014,0.814];
 p2 = [1.043,0.272,3.054];
 l1 = norm(p1-p2)

@@ -1,6 +1,6 @@
 function T = getObjectTransforms(dlnet, map, name)
 T = [];
-key = [name '_nerf_TFOffsetLayer/T'];
+key = [name '_nerf_T_world_2_cam'];
 if ~isKey(map, key)
     return
 end
