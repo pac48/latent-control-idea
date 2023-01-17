@@ -34,7 +34,7 @@ for layer = layers'
         %         end
         hold off
         subplot(1, count, ind)
-        plotCorrespondence(imRealBest, imgNerfBest, mkptsRealBest, mkptsNerfBest, mconfBest)
+        plotCorrespondence(imRealBest, imgNerfBest, mkptsRealBest, mkptsNerfBest)
         drawnow
     end
 end

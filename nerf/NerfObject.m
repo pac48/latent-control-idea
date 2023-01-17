@@ -24,8 +24,10 @@ classdef NerfObject < handle
             obj.testConnection();
 
             obj.scale = 1.0;
-%             if ~strcmp(name, 'nerf_background')
-%                 obj.scale = .5;
+%             if strcmp(name, 'nerf_background')
+%                 obj.scale = 1.6467;
+%             else
+%                 obj.scale = 0.4958;
 %             end
 
         end

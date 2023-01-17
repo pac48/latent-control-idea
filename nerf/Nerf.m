@@ -72,6 +72,7 @@ classdef Nerf < handle
             obj.name2FileMap  = containers.Map(keys , files);
             obj.name2FrameMap = containers.Map(keys , frames);
 
+            % might want to scale tranforms here
             for i = 1:length(names)
                 name = names{i};
                 obj.nerfObjs{i} = NerfObject(name);

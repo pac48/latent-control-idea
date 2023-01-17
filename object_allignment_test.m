@@ -93,7 +93,7 @@ if buildNetword
 
     for object = allObjects
         name = object{1};
-        lgraph = addNerfLayers(lgraph, featureNet, nerf, {['nerf_' name]}, imageSize, fov, ...
+        lgraph = addNerfLayers(lgraph, nerf, {['nerf_' name]}, imageSize, fov, ...
             [name '_nerf_'], image_layer_name, ind_layer_name, feature_layer_name);
 
         TFDummyName = [name '_nerf_T_world_2_cam'];
@@ -483,8 +483,6 @@ while 1
 
     iteration = iteration + 1;
     toc
-
-    %     pause(.2)
 end
 
 %%
@@ -555,15 +553,17 @@ p1 = [2.615,-0.055,-1.106]; % background
 p2 = [2.325,-0.056,-1.278];
 l2 = norm(p1-p2)
 
-l2/l1
+l2/l1;
 
 % real width of table:  value 1.143
 p1 = [0.580,-0.014,0.814];
 p2 = [1.043,0.272,3.054];
 l1 = norm(p1-p2)
+s1 = 1.143/l1
 
 p1 = [3.703,-0.106,2.267];
 p2 = [3.372,-0.095,2.877];
 l2 = norm(p1-p2)
+s2 = 1.143/l2
 
-l2/l1
+l2/l1;

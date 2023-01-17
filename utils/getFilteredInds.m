@@ -13,7 +13,7 @@ score = 0;
 counter = 0;
 bestScore = score;
 while score < .8
-    if counter == 10
+    if counter == 20
 %         bestScore
         return
     end

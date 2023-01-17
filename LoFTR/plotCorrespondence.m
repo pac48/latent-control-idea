@@ -1,4 +1,4 @@
-function plotCorrespondence(img0, img1, mkpts0, mkpts1, mconf)
+function plotCorrespondence(img0, img1, mkpts0, mkpts1)
     [X,Y] = meshgrid(0:(size(img1,2)-1), 0:(size(img1,1)-1));
     Z = ones(size(X)) ;
     hold off

@@ -1,15 +1,23 @@
-function [loss,gradients, state] = FullTFModelGradients(FullTFNet, img, Z, objects)
+function [loss,gradients, state] = FullTFModelGradients(fullTFNet, img, Z)
 % X: real scene image
 global curInd
+
 loss = 0;
+
+objects = getObjects(fullTFNet);
 
 for ind = 1:size(img,4)
     curInd = ind;
     %     [map, state] = getNetOutput(dlnet, img(:,:,:, ind), dlarray(ind,'CB'));
-    [map, state] = getNetOutput(FullTFNet, img(:,:,:, ind), Z(:, ind));
+    [map, state] = getNetOutput(fullTFNet, img(:,:,:, ind), Z(:, ind));
 
     for i = 1:length(objects)
         object = objects{i};
+
+        T = getObjectTransforms(fullTFNet, map, object);
+        if isempty(T)
+            continue
+        end
 
         [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
 
@@ -24,14 +32,9 @@ for ind = 1:size(img,4)
     end
 end
 
-gradients = dlgradient(loss, FullTFNet.Learnables);
+loss = loss./(size(img,4)*length(objects));
+
+gradients = dlgradient(loss, fullTFNet.Learnables);
 loss = double(loss);
 
-% hold off
-% x = cat(1, nerfPoints2D(1,:), realPoints2D(1,:));
-% y = cat(1, nerfPoints2D(2,:), realPoints2D(2,:));
-% plot(x,y)
-% hold on
-% plot(realPoints2D(1,:), realPoints2D(2,:),'LineStyle','none', 'Marker','.', 'MarkerSize',8)
-% drawnow
 end
