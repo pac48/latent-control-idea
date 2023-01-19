@@ -43,7 +43,8 @@ classdef NerfObject < handle
         end
 
         function [img, depth] = render(obj, w, h, fov_x)
-            obj.renderNonBlock(w/3, h/3, fov_x);
+%             assert(0, 'not working')
+            obj.renderNonBlock(w/3, h/3, fov_x/2);
 %             obj.renderNonBlock(w, h, fov_x);
             [img, depth] = obj.blockUntilResp();
             img = imresize(img, [h,w]);
@@ -53,7 +54,7 @@ classdef NerfObject < handle
 
         function renderNonBlock(obj, h, w, fov_x)
             %             out = obj.server.recv();
-            arr = cat(1, reshape(obj.T(1:3,:)',[], 1), w, h, fov_x);
+            arr = cat(1, reshape(obj.T(1:3,:)',[], 1), w, h, fov_x/2);
             obj.server.send(arr);
         end
 

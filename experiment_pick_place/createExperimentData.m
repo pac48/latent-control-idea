@@ -1,12 +1,13 @@
 function createExperimentData
 % createData
 
-imd = imageDatastore('img/');
+
+basePath = '/home/paul/latent-control-idea/experiment_pick_place/';
+
+imd = imageDatastore([basePath 'img/']);
 % fd = datastore('traj/', 'ReadFcn', @load, 'Type', 'file');
 % matFiles = fd.Files;
 imgFiles = imd.Files;
-basePath = '/home/paul/latent-control-idea/experiment_pick_place/';
-
 robot = Sawyer();
 
 close all
@@ -19,11 +20,13 @@ for i = 1:length(imgFiles)
     allMsg = tmp.allMsg;
 
     subplot(1,2,2)
+    robot.setJointsMsg(allMsg(1));
+    start = robot.getBodyTransform(18);
     playback(robot, allMsg(end))
     robot.setJointsMsg(allMsg(end));
     goal = robot.getBodyTransform(18);
 
-    dataPoint = struct('img', img, 'goal', goal);
+    dataPoint = struct('img', img, 'start', start, 'goal', goal);
     fileName = [basePath '/data/' num2str(i)];
     save(fileName, 'dataPoint')
 end
@@ -42,7 +45,7 @@ for i = 1:length(allMsg)
     hold off
     robot.plotObject
     hold on
-
+    % for ind = 1:28
     T = robot.getBodyTransform(gripperBaseInd);
     point = T(1:3,end);
     line =  [point point+T(1:3,1)*.15];
@@ -54,7 +57,7 @@ for i = 1:length(allMsg)
     line =  [point point+T(1:3,3)*.15];
     hold on
     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
-
+    % end
     drawnow
     pause(.01)
 

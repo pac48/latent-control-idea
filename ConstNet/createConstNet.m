@@ -14,7 +14,7 @@ feature_layer_name = featureInput.Name;
 
 for object = allObjects
     name = object{1};
-    lgraph = addNerfLayers(lgraph, nerf, {['nerf_' name]}, imageSize, fov, ...
+    lgraph = addNerfLayers(lgraph, nerf, {['nerf_' name]}, imageSize, ...
         [name '_nerf_'], image_layer_name, ind_layer_name, feature_layer_name);
 
     TFDummyName = [name '_nerf_T_world_2_cam'];

@@ -14,6 +14,9 @@ rosinit('http://192.168.1.10:11311')
 robot = Sawyer();
 joint_sub = rossubscriber('/robot/joint_states', 'DataFormat','struct');
 
+% head_img_sub = rossubscriber('/io/internal_camera/head_camera/image_raw', 'DataFormat','struct');
+% img = rosReadImage(head_img_sub.receive());
+% imshow(img)
 
 %% joint reading
 % tmp = load("calibrate/T.mat");
@@ -21,6 +24,7 @@ joint_sub = rossubscriber('/robot/joint_states', 'DataFormat','struct');
 % 
 % robot.bodyNames{realSenseInd}
 gripperBaseInd = 18;
+gripperBaseInd = 24; % cam link
 while 1
     msg = joint_sub.LatestMessage;
     if isempty(msg)
@@ -45,6 +49,8 @@ while 1
     hold on
     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
 
+
+    plotPointCloud(robot, constNet, objects, maps(2), Trobot_background)
 
 
 %     T = robot.getBodyTransform(realSenseInd);

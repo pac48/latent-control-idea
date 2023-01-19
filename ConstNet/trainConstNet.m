@@ -1,15 +1,16 @@
-function [Tall, constNet] = trainConstNet(constNet, imgs, objects, thresh)
-setDetectObjects(constNet, objects)
-for object = objects
-    findInitMatch(constNet, imgs, object{1})
-end
+function constNet = trainConstNet(constNet, imgs, objects, thresh)
+% setDetectObjects(constNet, objects)
+% for object = objects
+%     findInitMatch(constNet, imgs, object{1})
+% end
 
 
 numImages = size(imgs, 4);
 
-initialLearnRate = 9e-1;
+initialLearnRate = 4*2*9e-1;
+% initialLearnRate = 5e-2;
 decay = 0.0005;
-momentum = 0.9;
+momentum = 0.8;
 velocity = [];
 
 iteration = 0;
@@ -17,15 +18,15 @@ index = 0;
 
 loss = 1;
 
-while loss > thresh && iteration < 1000
+while loss > thresh && iteration < 200
     tic
-    if mod(iteration, 50) == 0
+    if mod(iteration, 201) == 0
         setSkipNerf(constNet, false);
     else
         setSkipNerf(constNet, true);
     end
 
-    [loss, gradients, state, Tall] = dlfeval(@simpleModelGradients, constNet, imgs, objects);
+    [loss, gradients, state] = dlfeval(@simpleModelGradients, constNet, imgs, objects);
     loss
 
     learnRate = initialLearnRate/(1 + decay*iteration);

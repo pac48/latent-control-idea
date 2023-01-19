@@ -18,7 +18,7 @@ classdef Nerf < handle
             img = img(:,:,1:size(img,3));
 %             imgBlur = imgaussfilt(img,.5);
 %             background_ind = any(imgBlur > .04, 3);
-            background_ind = depth ~= 0;
+            background_ind = abs(depth) > .1;
             img = img.*background_ind;
 %             depth = imgaussfilt(depth, .5);
 %             background_ind = any(img > .2, 3);
@@ -26,9 +26,9 @@ classdef Nerf < handle
            
             mask = depth ~= 0;
             K = ones(3);
-            for i = 1:3
-            mask = conv2(mask, K,"same") == 9;
-%             imshow(mask)
+            for i = 1:10
+               mask = conv2(mask, K,"same") == 9;
+%                  imshow(mask)
             end
             depth = depth.*mask;
 
@@ -100,6 +100,7 @@ classdef Nerf < handle
         end
 
         function [imgRender, imDepth] = render(obj, w, h, fov_x)
+            assert(0, 'not working')
             cellfun(@(x) x.renderNonBlock(w, h, fov_x), obj.nerfObjs)
             imgRender = zeros(w, h, 3);
             imDepth = zeros(w, h, 1);
@@ -125,9 +126,9 @@ classdef Nerf < handle
 %                 img = imresize(img, [h,w]);
 %                 depth = imresize(depth, [h,w], 'nearest');
 
-                inds = depth < 1.0;
+%                 inds = depth < 1.0;
                 [img, depth] = obj.removeBackground(img, depth);
-                depth(inds) = 0;
+%                 depth(inds) = 0;
                 img = obj.colorAdjust(img);
                 varargout{2*i-1} = img;
                 varargout{2*i} = depth;
