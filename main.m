@@ -28,6 +28,7 @@ h = 3024/4;
 
 % fov = 43; % realsense: needs to be same value as camera used for real images
 fov = 87;
+% fov = 69;
 w = 1280;
 h = 720;
 
@@ -36,7 +37,7 @@ imageSize = [h, w];
 
 loftr = LoFTR();
 allObjects = {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block'}; %, , 'plate', 'blue_block', 'fork'
-objects = {'background', 'book', 'iphone_box'};
+% objects = {'background'};
 
 tmp = cellfun(@(x) ['nerf_' x], allObjects, 'UniformOutput', false);
 nerf  = Nerf(tmp); %'nerf_blue_block',
@@ -45,12 +46,15 @@ nerf  = Nerf(tmp); %'nerf_blue_block',
 featureNet = createFeatureNet(imageSize);
 
 %% create TFNet
+% objects = {'background'};
+objects = {'book', 'iphone_box'};
 TFNet = createTFNet(featureNet, objects);
 % createPretrainData(featureNet, objects)
 % [Zall, Tall] = TFProcessData(objects, 'pretrain');
 % TFNet = trainTFNet(TFNet, Zall, Tall, 0.001);
 
 %% create constNet
+fov = 100;
 constNet = createConstNet(objects, imageSize);
 constNet = resetConstNet(constNet, objects);
 
@@ -65,6 +69,7 @@ fullTFNet = createFullTFNet(constNet, TFNet);
 % imgs = cat(4, imgs{:});
 
 
+% fd = imageDatastore('calibration/');
 fd = imageDatastore('data');
 allData = fd.readall();
 imgs = cellfun(@(x) double(imresize(x, imageSize))./255, allData, 'UniformOutput', false);
@@ -73,16 +78,22 @@ imgs = cat(4, imgs{:});
 
 
 imgs = imgs(:, :, :, 1);
+objectsPred = objects(1:end); 
 
-setDetectObjects(constNet, objects)
-for object = objects
-    findInitMatch(constNet, imgs, object{1})
-end
+% for object = objectsPred
+%     findInitMatch(constNet, imgs, object{1})
+% end
+% constNet = resetConstNet(constNet, objects);
 
-constNet = resetConstNet(constNet, objects);
-
-for i = 1:10
-    constNet = trainConstNet(constNet, imgs, objects, 0.0003);
+clearCache(constNet)
+setDetectObjects(constNet, objectsPred)
+% fov = 100;
+% for i = 1:2
+%     constNet = trainConstNet(constNet, imgs, objectsPred, 0.00003);
+% end
+fov = 69;
+for i = 1:5
+    constNet = trainConstNet(constNet, imgs, objectsPred, 0.00003);
 end
 % Tobj_cam_map = getObjectsTMap(constNet, imgs, objects);
 % Z = featureNet.predict(imgs);
@@ -93,6 +104,7 @@ end
 % setSkipNerf(fullTFNet, false);
 
 %% predict
+
 maps = {};
 for ind = 1:size(imgs, 4)
     %         curInd = ind;
@@ -105,74 +117,91 @@ for ind = 1:size(imgs, 4)
     maps = cat(2, maps, {map});
 end
 mapBatch = mergeMaps(maps);
-
-% plotAllCorrespondence(fullTFNet, 1)
-% plotImageMSE(fullTFNet, imgs)
-
 plotAllCorrespondence(constNet, 1)
 plotImageMSE(constNet, imgs)
 
+%% ROS
+rosshutdown()
+rosinit('http://192.168.1.10:11311')
+joint_sub = rossubscriber('/robot/joint_states', 'DataFormat','struct');
+
 %% create point cloud
-close all
 robot = Sawyer();
-tmp = load('msgCamPos1.mat'); 
-% tmp = load('msgCamPos2.mat'); 
-robot.setJointsMsg(tmp.msg);
-map = maps{1};
-Tcam1_background = extractdata(map('background_nerf_T_world_2_cam'));
-camLinkInd = 24; % cam link
-Trobot_cam2 = robot.getBodyTransform(camLinkInd);
-% Trobot_cam2 = eye(4);
+% tmp = load('Trobot_background.mat');
+% Trobot_background = tmp.Trobot_background;
+msgForTestPose = joint_sub.LatestMessage;
+Trobot_cam2 = getTrobot_cam(robot, msgForTestPose);
 
-Tcam2_cam1 = eye(4);
-Tcam2_cam1(1:3, 1:3) = [0 0 -1
-                        -1 0 0
-                        0 1 0];
+%%
+close all
 
 
-Trobot_background = Trobot_cam2*Tcam2_cam1*Tcam1_background;
 
-% Trobot_background = Tcam1_background;
-% Trobot_background = eye(4);
+figure
+plotPointCloud(robot, constNet, objects, maps(1), Trobot_cam2)
+plotTF(Trobot_cam2, '-')
 
-plotPointCloud(robot, constNet, objects, maps(1), Trobot_background)
-
-
-point = Trobot_cam2(1:3,end);
-line =  [point point+Trobot_cam2(1:3,1)*1.9];
-hold on
-plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','r')
-line =  [point point+Trobot_cam2(1:3,2)*.15];
-hold on
-plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','g')
-line =  [point point+Trobot_cam2(1:3,3)*.15];
-hold on
-plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
-
-
-% [fl, fx, fy] = getFValues(constNet);
-% boxPoints = [];
-% bookPoints = [];
-
-% for i = 1:length(maps)
-%     [allBookPoints, ~] = getObjectPointCloud(maps{i}, 'book', fl, fx, fy);
-%     
-%     idx = kmeans(allBookPoints', 2, 'Distance', 'cityblock', 'Start', 'uniform', 'Replicates',5);
-%     idx = idx==1;
-%     allBookPoints = allBookPoints(:, idx);
-%     
-%     tmp = mean(allBookPoints,2);
-%     bookPoints = cat(1, bookPoints, tmp');
-% 
-%     [allBoxPoints, ~] = getObjectPointCloud(maps{i}, 'iphone_box', fl, fx, fy);
-%     idx = kmeans(allBoxPoints', 2, 'Distance', 'cityblock', 'Start', 'uniform', 'Replicates',5);
-%     idx = idx==1;
-%     allBoxPoints = allBoxPoints(:, idx);
-%     tmp = mean(allBoxPoints, 2);
-%     boxPoints = cat(1, boxPoints, tmp');
+% p1 = Trobot_cam2(1:3,end);
+% theta = 87/2;
+% for s = [-1 1]
+% vec = (Trobot_cam2(1:3, 1)*sind(theta) + s*Trobot_cam2(1:3, 2)*cosd(theta) )*3;
+% p2 = p1 + vec;
+% plot3([p1(1) p2(1)], [p1(2) p2(2)], [p1(3) p2(3)])
 % end
-% plot3(bookPoints(:,1), bookPoints(:,2), bookPoints(:,3), 'MarkerSize',50, 'Marker','.')
 
+%% create Trobot_background
+
+tmp = load('Mapsrobot_background.mat');
+maps = tmp.maps;
+
+Trobot_backgroundAll = [];
+
+for ind = 1:3
+    fileName = ['msgCamPos' num2str(ind) '.mat'];
+    tmp = load(['calibration/' fileName]);
+    robot.setJointsMsg(tmp.msg);
+
+    map = maps{ind};
+    Tcam1_background = extractdata(map('background_nerf_T_world_2_cam'));
+    camLinkInd = 24; % cam link
+    Trobot_cam2 = robot.getBodyTransform(camLinkInd);
+
+    Tcam2_cam1 = eye(4);
+    Tcam2_cam1(1:3, 1:3) = [0 0 -1
+                            -1 0 0
+                            0 1 0];
+
+    Trobot_background = Trobot_cam2*Tcam2_cam1*Tcam1_background;
+    Trobot_backgroundAll = cat(3, Trobot_backgroundAll, Trobot_background);
+
+    plotPointCloud(robot, constNet, {'background'}, maps(ind), Trobot_background)
+
+    point = Trobot_cam2(1:3,end);
+    line =  [point point+Trobot_cam2(1:3,1)*1.9];
+    hold on
+    plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','r')
+    line =  [point point+Trobot_cam2(1:3,2)*.15];
+    hold on
+    plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','g')
+    line =  [point point+Trobot_cam2(1:3,3)*.15];
+    hold on
+    plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
+
+end
+
+
+Rall = Trobot_backgroundAll(1:3, 1:3, :);
+rpyAll = [];
+for i = 1:size(Rall)
+    rpyAll = cat(3, rpyAll, rotm2eul(Rall(:, :, i))');
+end
+
+Pall = Trobot_backgroundAll(1:3, end, :);
+P = mean(Pall, 3);
+rpy = mean(rpyAll, 3);
+Trobot_background = [[eul2rotm(rpy') P]; [0 0 0 1]];
+
+% save('Trobot_background', 'Trobot_background')
 
 %% calculate transform from nerf
 robot = Sawyer();
@@ -203,25 +232,6 @@ for i = 1:length(maps)
     boxPoints = cat(3, boxPoints, tmp);
 end
 
-% for i = 1:length(maps)
-%     [allBookPoints, ~] = getObjectPointCloud(maps{i}, 'book', fl, fx, fy);
-%     
-%     idx = kmeans(allBookPoints', 2, 'Distance', 'cityblock', 'Start', 'uniform', 'Replicates',5);
-%     idx = idx==1;
-%     allBookPoints = allBookPoints(:, idx);
-%     
-%     tmp = mean(allBookPoints,2);
-%     bookPoints = cat(3, bookPoints, tmp);
-% 
-%     [allBoxPoints, ~] = getObjectPointCloud(maps{i}, 'iphone_box', fl, fx, fy);
-%     idx = kmeans(allBoxPoints', 2, 'Distance', 'cityblock', 'Start', 'uniform', 'Replicates',5);
-%     idx = idx==1;
-%     allBoxPoints = allBoxPoints(:, idx);
-%     tmp = mean(allBoxPoints, 2);
-%     boxPoints = cat(3, boxPoints, tmp);
-% end
-
-
 robotBookPoints = double(reshape(robotBookPoints, 3, [])');
 robotBoxPoints = double(reshape(robotBoxPoints, 3, [])');
 bookPoints = double(reshape(bookPoints, 3, [])');
@@ -234,8 +244,8 @@ ptCloudRobot = pointCloud(cat(1, robotBookPoints));
 ptCloudNerf = pointCloud(cat(1, bookPoints));
 
 % find TF to bring nerf into robot frame
-[tformEst, inlierIndex] = estgeotform3d(ptCloudNerf.Location, ptCloudRobot.Location, "rigid"); 
-% [tformEst, inlierIndex] = estimateGeometricTransform3D(ptCloudRobot.Location, ptCloudNerf.Location, 'rigid'); 
+[tformEst, inlierIndex] = estgeotform3d(ptCloudNerf.Location, ptCloudRobot.Location, "rigid");
+% [tformEst, inlierIndex] = estimateGeometricTransform3D(ptCloudRobot.Location, ptCloudNerf.Location, 'rigid');
 
 
 figure
@@ -243,7 +253,7 @@ figure
 inliersPtCloudNerf = transformPointsForward(tformEst, ptCloudNerf.Location(inlierIndex,:) );
 inliersPtCloudRobot = ptCloudRobot.Location(inlierIndex,:);
 
-% inliersPtCloudNerf = ptCloudNerf.Location(inlierIndex,:); 
+% inliersPtCloudNerf = ptCloudNerf.Location(inlierIndex,:);
 % inliersPtCloudRobot = transformPointsForward(tformEst, ptCloudRobot.Location(inlierIndex,:));
 
 
@@ -254,13 +264,6 @@ scatter3(inliersPtCloudRobot(:,1), inliersPtCloudRobot(:,2), inliersPtCloudRobot
 T = eye(4);
 T(1:3, 1:3) = tformEst.Rotation';
 T(1:3, end) = tformEst.Translation;
-
-%% plot cloud
-robot = Sawyer();
-% T = eye(4)
-plotPointCloud(robot, constNet, objects, maps, T)
-plot3(inliersPtCloudRobot(:,1), inliersPtCloudRobot(:,2), inliersPtCloudRobot(:,3), 'MarkerSize',50, 'Marker','.')
-
 
 %% PSMNET
 

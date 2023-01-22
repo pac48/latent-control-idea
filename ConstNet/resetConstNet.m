@@ -27,6 +27,6 @@ for object = allObjects
 end
 
 constNet = dlnetwork(lgraph);
-clearCache(constNet)
+% clearCache(constNet)
 
 end

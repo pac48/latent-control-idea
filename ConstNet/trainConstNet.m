@@ -1,14 +1,8 @@
 function constNet = trainConstNet(constNet, imgs, objects, thresh)
-% setDetectObjects(constNet, objects)
-% for object = objects
-%     findInitMatch(constNet, imgs, object{1})
-% end
-
 
 numImages = size(imgs, 4);
 
-initialLearnRate = 4*2*9e-1;
-% initialLearnRate = 5e-2;
+initialLearnRate = 9e-0;
 decay = 0.0005;
 momentum = 0.8;
 velocity = [];
@@ -18,9 +12,9 @@ index = 0;
 
 loss = 1;
 
-while loss > thresh && iteration < 200
+while loss > thresh && iteration < 50
     tic
-    if mod(iteration, 201) == 0
+    if mod(iteration, 401) == 0
         setSkipNerf(constNet, false);
     else
         setSkipNerf(constNet, true);
@@ -28,11 +22,14 @@ while loss > thresh && iteration < 200
 
     [loss, gradients, state] = dlfeval(@simpleModelGradients, constNet, imgs, objects);
     loss
+    if isempty(gradients)
+         break;
+    end
 
     learnRate = initialLearnRate/(1 + decay*iteration);
     [constNet, velocity] = sgdmupdate(constNet, gradients, velocity, learnRate, momentum);
 
-    if mod(iteration, 300) == 0
+    if mod(iteration, 401) == 0
         iteration
         index = mod(index + 1, numImages);
         subplot(1,1,1)

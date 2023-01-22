@@ -19,17 +19,18 @@ classdef Nerf < handle
 %             imgBlur = imgaussfilt(img,.5);
 %             background_ind = any(imgBlur > .04, 3);
             background_ind = abs(depth) > .1;
-            img = img.*background_ind;
+%             img = img.*background_ind;
 %             depth = imgaussfilt(depth, .5);
 %             background_ind = any(img > .2, 3);
             depth = depth.*background_ind;
            
             mask = depth ~= 0;
             K = ones(3);
-            for i = 1:10
+            for i = 1:3
                mask = conv2(mask, K,"same") == 9;
 %                  imshow(mask)
             end
+%             mask = depth > .5;
             depth = depth.*mask;
 
 %             inds = depth < .75*mean(depth(depth>0), 'all');

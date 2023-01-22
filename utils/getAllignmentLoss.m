@@ -20,12 +20,12 @@ for i = 1:length(objects)
 
     [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
     if numel(mkptsReal) > 2 && strcmp(object, 'background')
-        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 100);
+        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 250/3, 10000/3);
     elseif numel(mkptsReal) > 2
-        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 10, 100);
+        loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 25, 2000);
     end
 
-    if plotStuff
+    if plotStuff && ~isempty(mkptsNerf)
         subplot(numSubRows,length(objects), (rowInd-1)*length(objects) + i)
         mkptsNerf = extractdata(mkptsNerf);
         mkptsReal = extractdata(mkptsReal);

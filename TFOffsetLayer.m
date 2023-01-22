@@ -120,7 +120,8 @@ classdef TFOffsetLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruc
                 if ~isempty(indT)
                     R = layer.getR(X(4:6, indT));
                     %             R = reshape(X(4:12, :), 3, 3, []) + eye(3);
-                    R = pagemtimes(layer.T0(1:3, 1:3, indT), R);
+%                     R = pagemtimes(layer.T0(1:3, 1:3, indT), R);
+                    R = pagemtimes(R, layer.T0(1:3, 1:3, indT)); % this rotates about camera's coordinates
 
                     %             R = pagemtimes(R2, R);
 

@@ -3,13 +3,18 @@ layers = dlnet.Layers;
 count = 0;
 for layer = layers'
     if isa(layer, 'NerfLayer')
-        count = count+1;
+        if any(contains(layer.h.structure.detectObjects, layer.objectName))
+            count = count+1;
+        end
     end
 end
 ind = 0;
 for layer = layers'
     if isa(layer, 'NerfLayer')
         if imgInd > length(layer.h.structure.(layer.Name).mkptsNerf)
+            continue
+        end
+        if ~any(contains(layer.h.structure.detectObjects, layer.objectName))
             continue
         end
         imRealBest = layer.h.structure.(layer.Name).imReal{imgInd};

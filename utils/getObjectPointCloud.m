@@ -8,19 +8,31 @@ if ~map.isKey(keyImg) || ~map.isKey(keyDepth)
     return
 end
 
-Tcam_background = extractdata(map('background_nerf_T_world_2_cam'));
-Tbackground_cam = inv(Tcam_background);
+% Tcam_background = extractdata(map('background_nerf_T_world_2_cam'));
+% Tbackground_cam = inv(Tcam_background);
 
-mapScale = containers.Map( {'background', 'book', 'iphone_box'}, {0.9*1.3069*0.8386, 0.3011, 0.3011});
+% mapScale = containers.Map( {'background', 'book', 'iphone_box'}, {1.6467*.45, 0.4958*.35, 0.4958*.35});
+
+objScale = 0.1538;
+mapScale = containers.Map( {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block'}, ...
+    {.5*1.25, objScale, objScale, objScale, objScale, objScale});
 % postScale = 0.6745;%1.6467/2.4414;
-postScale = 1.0;%1.6467/2.4414;
+% postScale = 1.6467/2.4414;
+% postScale = .55;
 
-scale = mapScale(object)*0.6745*0.8759*0.9172*1.7705*1.0844*.5*1.1;
+postScale = 1;
+
+% scale = mapScale(object)*0.6745*0.8759*0.9172*1.7705*1.0844*.5*1.1;
+scale = mapScale(object);
 % scale = 0.6745;
+% % scale = .5;
 
 depth = scale*extractdata(map(keyDepth));
 img = extractdata(map(keyImg));
 
+if isempty(img)
+    return
+end
 % depth = imresize(depth, .5);
 % img = imresize(img, .5);
 
@@ -31,6 +43,7 @@ height = size(img, 1);
 inds = (1:numel(depth))';
 d = depth(inds);
 [X,Y] = meshgrid(linspace(-.5, .5, width), linspace(-.5, .5, height));
+% [X,Y] = meshgrid(linspace(-1, 1, width), linspace(-1, 1, height));
 xPix = X(inds);
 yPix = -Y(inds);
 % xDir =  fx*xPix;
@@ -42,13 +55,13 @@ yPix = -Y(inds);
 % points = vec.*d;
 
 Z = -d;
-X = -(xPix).*Z./(1/fx);
-Y = -(yPix).*Z./(1/fy);
+X = -(xPix).*Z*fx;
+Y = -(yPix).*Z*fy;
 points = [X Y Z];
 
 points = points';  % camera coordinates
 
-points = Tbackground_cam(1:3, 1:3)*points + Tbackground_cam(1:3, end);
+% points = Tbackground_cam(1:3, 1:3)*points + Tbackground_cam(1:3, end);
 points = postScale*points;
 indsCrop = abs(d) < 3 & abs(d) > 0.01;
 % indsCrop = abs(d) < 3000000000 & abs(d) > 0.00000001;

@@ -62,8 +62,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             layer.h.structure.(layer.Name).mkptsNerf = {};
             layer.h.structure.(layer.Name).mconf = {};
             layer.h.structure.(layer.Name).points = {};
-            layer.h.structure.(layer.Name).indT = {};
-            layer.h.structure.(layer.Name).angle = {};
+%             layer.h.structure.(layer.Name).indT = {};
+%             layer.h.structure.(layer.Name).angle = {};
         end
 
         function [fl, fx, fy] = getFValues(layer)
@@ -99,10 +99,11 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             for b = 1:batchSize
                 numPoint = 2;
-                tmp = [0:30:170; -(0:30:170)];
-                tmp = reshape(tmp, 1, []);
-                tmp(diff(tmp)==0) = [];
-                for angle = 0 %tmp
+%                 tmp = [0:30:170; -(0:30:170)];
+%                 tmp = reshape(tmp, 1, []);
+%                 tmp(diff(tmp)==0) = [];
+                angles = 0;%-90 180];
+                for angle = angles %tmp
                     for i = 1:length(layer.initNerfImgs)
                         T = layer.allT{i};
                         imgNerf = layer.initNerfImgs{i};
@@ -116,9 +117,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                             layer.updateState(b, mkptsNerf, mkptsReal, points, mconf, imgNerf, imReal, depth)
                         end
                     end
-                    if numPoint ~=2
-                        break;
-                    end
+%                     if numPoint ~=2
+%                         break;
+%                     end
                 end
             end
 
@@ -132,6 +133,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             global fov
 
             T = inv(T); % cam to world
+            T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([0 0 1 pi*angle/180]);
+        
+            angle = angle*0;
 
             assert(length(layer.objNames)==1, "only one object is supported per nerf")
 
@@ -145,6 +149,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         function [mkptsNerf, mkptsReal, points, mconf] = matchImage(layer, imReal, imgNerf, depth, T, angle)
             global loftr
+            global curInd
+
             points = [];
 
             if  isa(imReal, 'dlarray')
@@ -157,22 +163,90 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 imgNerf = uint8(255*imgNerf);
             end
 
-            A = [cosd(angle) -sind(angle) 0; sind(angle) cosd(angle) 0; 0 0 1];
+%             if angle ~= 0
+%                 % call LoFTR to get 2D points
+%                 [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerf);
+%                 if size(mkptsReal,1) > 20
+%                         angle = 0;
+%                         layer.h.structure.(layer.Name).angle{curInd} = angle;
+%                 else
 
-            tform = affinetform2d(A);
-            centerOutput = affineOutputView(size(imgNerf), tform, "BoundsStyle","CenterOutput");
-            imgNerfRot = imwarp(imgNerf, tform, "OutputView",centerOutput);
+                A = [cosd(angle) -sind(angle) 0; sind(angle) cosd(angle) 0; 0 0 1];
+    
+                tform = affinetform2d(A);
+                centerOutput = affineOutputView(size(imgNerf), tform, "BoundsStyle","CenterOutput");
+                imgNerfRot = imwarp(imgNerf, tform, "OutputView",centerOutput);
+    
+                % call LoFTR to get 2D points
+                [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerfRot);
 
-            % call LoFTR to get 2D points
-            [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerfRot);
+%                 end
+%             else
+%                 [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerf);
+%             end
 
             if size(mkptsNerf,1) < 3
                 return
             end
 
+           
+%             if ~contains(layer.Name, 'background')
+                maxDistance = 50;
+                inds = getFilteredInds(maxDistance, imReal, imgNerf, mkptsReal, mkptsNerf);
+                mkptsNerf = mkptsNerf(inds, :);
+                mkptsReal = mkptsReal(inds, :);
+%                 mconf = mconf(inds);
+%                 points = points(:, inds);
 
-            tmp = inv(A)*cat(2, mkptsNerf - [layer.width/2 layer.height/2], ones(size(mkptsNerf, 1), 1) )';
+%                 realRange = [min(mkptsReal(:,[2 1]),[],1) max(mkptsReal(:,[2 1]),[],1)]
+                if size(mkptsReal, 1) < 3
+                    return
+                end
+
+% %                 offset = 0;
+% % 
+% %                 realRectMin = min(mkptsReal,[],1) - offset;
+% %                 realRectSize = max(mkptsReal,[],1) - realRectMin + offset;
+% %                 realCrop = [realRectMin realRectSize];
+% %                 imRealCrop = imcrop(imReal, realCrop);
+% %                 
+% %                 nerfRectMin = min(mkptsNerf,[], 1) - offset;
+% %                 nerfRectSize = max(mkptsNerf,[],1) - nerfRectMin + offset;
+% %                 nerfCrop = [nerfRectMin  nerfRectSize];
+% %                 imgNerfCrop = imcrop(imgNerf, nerfCrop);
+% % 
+% %                 [mkptsRealCrop, mkptsNerfCrop, mconf] = loftr.predict(imRealCrop, imgNerfCrop);        
+% % %                 plotCorrespondence(imRealCrop, imgNerfCrop, mkptsRealCrop, mkptsNerfCrop)
+% %                 if size(mkptsRealCrop, 1) > 3
+% %                     mkptsReal = cat(1, mkptsReal, mkptsRealCrop + realRectMin);
+% %                     mkptsNerf = cat(1, mkptsNerf, mkptsNerfCrop + nerfRectMin);
+% %                 end
+% %                 
+%             else
+%                 inds = [];
+%                 for i = 1:size(mkptsReal, 1)
+%                     idx = floor(mkptsReal(i, :));
+%                     c1 = double(imReal(idx(2), idx(1), :))./255;
+%                     
+%                     idx = floor(mkptsNerf(i, :));
+%                     c2 = double(imgNerf(idx(2), idx(1), :))./255;
+%                     if sum(abs(c1-c2)) < .1
+%                         inds = cat(1, inds, i);
+%                     end
+                
+%                 end
+                
+%                 mkptsNerf = mkptsNerf(inds, :);
+%                 mkptsReal = mkptsReal(inds, :);
+%                 mconf = mconf(inds);
+%                 points = points(:, inds);
+
+%             end
+            %
+
+             tmp = inv(A)*cat(2, mkptsNerf - [layer.width/2 layer.height/2], ones(size(mkptsNerf, 1), 1) )';
             mkptsNerf = tmp(1:2,:)' + [layer.width/2 layer.height/2];
+
 
             inds = floor(mkptsNerf);
             inds = (inds(:,1,: )-1)*layer.height + inds(:,2,:);
@@ -181,7 +255,12 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             end
 
             %             goodInds = depth(inds) ~= 0;
-            goodInds = depth(inds) > 1;
+            if ~contains(layer.Name, 'background')
+                goodInds = depth(inds) > 1;
+            else
+                goodInds = depth(inds) > 1;
+%                 depth = depth*0 + 10;
+            end
 
             inds = inds(goodInds);
             if length(inds) < 3
@@ -235,8 +314,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 %             points = vec.*d;
 
             Z = -d;
-            X = -(xPix).*Z./(1/fx);
-            Y = -(yPix).*Z./(1/fy);
+            X = -(xPix).*Z*fx;
+            Y = -(yPix).*Z*fy;
             points = [X Y Z];
             
             points = points';  % camera coordinates
@@ -244,41 +323,10 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             mkptsNerf = [mkptsNerf(goodInds,1) mkptsNerf(goodInds,2)];
             mkptsReal = [mkptsReal(goodInds,1) mkptsReal(goodInds,2)];
-            mconf = mconf(goodInds);
-
-            if ~contains(layer.Name, 'background')
-                maxDistance = 20;
-                inds = getFilteredInds(maxDistance, imReal, imgNerf, mkptsReal, mkptsNerf);
-
-                mkptsNerf = mkptsNerf(inds, :);
-                mkptsReal = mkptsReal(inds, :);
-                mconf = mconf(inds);
-                points = points(:, inds);
-
-            else
-                inds = [];
-                for i = 1:size(mkptsReal, 1)
-                    idx = floor(mkptsReal(i, :));
-                    c1 = double(imReal(idx(2), idx(1), :))./255;
-                    
-                    idx = floor(mkptsNerf(i, :));
-                    c2 = double(imgNerf(idx(2), idx(1), :))./255;
-                    if sum(abs(c1-c2)) < .1
-                        inds = cat(1, inds, i);
-                    end
-                
-                end
-                
-                mkptsNerf = mkptsNerf(inds, :);
-                mkptsReal = mkptsReal(inds, :);
-                mconf = mconf(inds);
-                points = points(:, inds);
-
-            end
-            %
+%             mconf = mconf(goodInds);
 
 
-            if length(mconf) < 3
+            if size(mkptsReal, 1) < 3
                 mkptsNerf = [];
                 mkptsReal = [];
                 mconf  = [];
@@ -288,46 +336,46 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
 
 
-            if contains(layer.Name, 'background')
-                model = fitModel([mkptsNerf mkptsReal]);
-                cost = fitValue(model, [mkptsNerf mkptsReal]);
+%             if contains(layer.Name, 'background')
+%                 model = fitModel([mkptsNerf mkptsReal]);
+%                 cost = fitValue(model, [mkptsNerf mkptsReal]);
+% 
+%                 percentiles = prctile(cost, 99);
+% %                 percentiles = prctile(cost, 99);
+%                 inds = 1:length(mconf);
+%                 inds = inds(cost <= percentiles(1));
+% %                 inds = inds(cost <= 150);
+%                 mkptsNerf = mkptsNerf(inds, :);
+%                 mkptsReal = mkptsReal(inds, :);
+%                 mconf = mconf(inds);
+%                 points = points(:, inds);
+%                 cost = cost(inds);
+%             else
+%                 model = fitModel([mkptsNerf mkptsReal]);
+%                 cost = fitValue(model, [mkptsNerf mkptsReal]);
+%                 %                 for j =1:5
+%                 %                     model = fitModel([mkptsNerf mkptsReal]);
+%                 %                     cost = fitValue(model, [mkptsNerf mkptsReal]);
+%                 %
+%                 %                     percentiles = prctile(cost, 90);
+%                 %                     inds = 1:length(mconf);
+%                 %                     inds = inds(cost <= percentiles(1));
+%                 %                     mkptsNerf = mkptsNerf(inds, :);
+%                 %                     mkptsReal = mkptsReal(inds, :);
+%                 %                     mconf = mconf(inds);
+%                 %                     points = points(:, inds);
+%                 %                     cost = cost(inds);
+%                 %                 end
+%             end
 
-%                 percentiles = prctile(cost, 95);
-                percentiles = prctile(cost, 99);
-                inds = 1:length(mconf);
-                inds = inds(cost <= percentiles(1));
-%                 inds = inds(cost <= 150);
-                mkptsNerf = mkptsNerf(inds, :);
-                mkptsReal = mkptsReal(inds, :);
-                mconf = mconf(inds);
-                points = points(:, inds);
-                cost = cost(inds);
-            else
-                model = fitModel([mkptsNerf mkptsReal]);
-                cost = fitValue(model, [mkptsNerf mkptsReal]);
-                %                 for j =1:5
-                %                     model = fitModel([mkptsNerf mkptsReal]);
-                %                     cost = fitValue(model, [mkptsNerf mkptsReal]);
-                %
-                %                     percentiles = prctile(cost, 90);
-                %                     inds = 1:length(mconf);
-                %                     inds = inds(cost <= percentiles(1));
-                %                     mkptsNerf = mkptsNerf(inds, :);
-                %                     mkptsReal = mkptsReal(inds, :);
-                %                     mconf = mconf(inds);
-                %                     points = points(:, inds);
-                %                     cost = cost(inds);
-                %                 end
-            end
 
-
-                        if mean(cost) > 200
-                            mkptsNerf = [];
-                            mkptsReal = [];
-                            mconf  = [];
-                            points  = [];
-                            return
-                        end
+%                         if mean(cost) > 200
+%                             mkptsNerf = [];
+%                             mkptsReal = [];
+%                             mconf  = [];
+%                             points  = [];
+%                             return
+%                         end
 
 
             %
@@ -358,14 +406,14 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 layer.h.structure.(layer.Name).points{curInd} = [];
             end
 
-            if ~contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >=  5 %size(layer.h.structure.(layer.Name).points{curInd}, 2)%3 %size(layer.h.structure.(layer.Name).points, 2)
+            if ~contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >=  10 %.9*size(layer.h.structure.(layer.Name).points{curInd}, 2) %size(layer.h.structure.(layer.Name).points{curInd}, 2)%3 %size(layer.h.structure.(layer.Name).points, 2)
                 layer.h.structure.(layer.Name).depthNerf{curInd} = [];
                 layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
                 layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
                 layer.h.structure.(layer.Name).mconf{curInd} = mconf;
                 layer.h.structure.(layer.Name).points{curInd} = points;
             end
-            if contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >= 100 %size(layer.h.structure.(layer.Name).points{curInd}, 2)
+            if contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >= 10 %size(layer.h.structure.(layer.Name).points{curInd}, 2)
                 layer.h.structure.(layer.Name).depthNerf{curInd} = [];
                 layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
                 layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
@@ -376,7 +424,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         end
 
-        function [points, mkptsRealNormalized, mkptsNerf, imgReal, imgNerf, depth] = predict(layer, Tin, Img)
+        function [pointsOut, mkptsRealNormalizedOut, mkptsNerfOut, imgRealOut, imgNerfOut, depthOut] = predict(layer, Tin, Img)
             % X: xyz rpy (6 x batch) this is transform from world to camera
             % coordinates
             % Y: input image (h x w x 3 x b)
@@ -386,21 +434,17 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             imReal = double(gather(extractdata(Img)));
 
             %             'pointsNerf', 'mkptsReal', 'mkptsNerf', 'imgReal', 'imgNerf', 'depth'
-            points = dlarray([], 'SSB'); % pointsNerf
-            mkptsRealNormalized = dlarray([], 'SSB'); % real points 2d : mkptsReal
-            mkptsNerf = dlarray([], 'SSB'); % mkptsNerf
+            pointsOut = dlarray([], 'SSB'); % pointsNerf
+            mkptsRealNormalizedOut = dlarray([], 'SSB'); % real points 2d : mkptsReal
+            mkptsNerfOut = dlarray([], 'SSB'); % mkptsNerf
 
-            imgReal = dlarray([], 'SSCB'); % imgReal
-            imgNerf = dlarray([], 'SSCB'); % imgNerf
-            depth = dlarray([], 'SSCB'); % depth
+            imgRealOut = dlarray([], 'SSCB'); % imgReal
+            imgNerfOut = dlarray([], 'SSCB'); % imgNerf
+            depthOut = dlarray([], 'SSCB'); % depth
 
             if ~any(cellfun(@(x) strcmp(x, layer.objectName),  layer.h.structure.detectObjects))
                 return
             end
-            if all(Tin(:,:,1)==1, 'all')
-                return
-            end
-
             if all(Tin(:,:,1)==1, 'all')
                 return
             end
@@ -414,7 +458,9 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             %             curInd = layer.h.structure.curInd;
             %             inds = layer.h.structure.(layer.Name).indT{curInd};
-            %             angle = layer.h.structure.(layer.Name).angle{curInd};
+            
+%              angle = layer.h.structure.(layer.Name).angle{curInd};
+%             angle = layer.h.structure.(layer.Name).angle;
             angle = 0;
 
             skipNerf = layer.h.structure.(layer.Name).skipNerf;
@@ -424,8 +470,18 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 %                         break;
                 %                     end
                 T = Tin;%(:,:,b); % world to cam
-                [mkptsNerf, mkptsReal, points, mconf, imgNerf, depth] = layer.render(T, angle, imReal);%layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)])(T);
-                layer.updateState(curInd, mkptsNerf, mkptsReal, points, mconf, imgNerf, imReal, depth);
+                numPoints = 0;
+                bestAngle = [];
+                for angle = [-90 0 90 180]
+                    [mkptsNerf, mkptsReal, points, mconf, imgNerf, depth] = layer.render(T, angle, imReal);%layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)])(T);
+                    if size(mkptsNerf, 1) > numPoints
+                        layer.updateState(curInd, mkptsNerf, mkptsReal, points, mconf, imgNerf, imReal, depth);
+                        numPoints = size(mkptsNerf, 1);
+                        bestAngle = angle;
+                    end
+                end
+%                 why
+                
                 %                     layer.h.structure.(layer.Name).imgNerf{curInd} = imgNerf;
                 %                     layer.h.structure.(layer.Name).imReal{curInd} = imReal;
                 %                     if ~isempty(points) && size(points, 2) >=  3 %size(layer.h.structure.(layer.Name).points, 2)
@@ -459,21 +515,21 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 mkptsReal = tmp.mkptsReal{curInd};
                 points = tmp.points{curInd};
 
-                points = dlarray(points, 'SSB');
+                pointsOut = dlarray(points, 'SSB');
                 offset = [layer.width layer.height];
                 [fl, fx, fy] = layer.getFValues();
                 mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
-                mkptsRealNormalized = dlarray(mkptsRealNormalized','SSB');
+                mkptsRealNormalizedOut = dlarray(mkptsRealNormalized','SSB');
 
                 if ~skipNerf
                     mkptsNerf = tmp.mkptsNerf{curInd};
                     imgNerf = tmp.imgNerf{curInd};
                     depth = tmp.depth{curInd};
 
-                    mkptsNerf = dlarray(mkptsNerf', 'SSB'); % mkptsNerf
-                    imgReal = dlarray(imReal, 'SSCB'); % imgReal
-                    imgNerf = dlarray(double(imgNerf)./255, 'SSCB'); % imgNerf
-                    depth = dlarray(depth, 'SSCB'); % depth
+                    mkptsNerfOut = dlarray(mkptsNerf', 'SSB'); % mkptsNerf
+                    imgRealOut = dlarray(imReal, 'SSCB'); % imgReal
+                    imgNerfOut = dlarray(double(imgNerf)./255, 'SSCB'); % imgNerf
+                    depthOut = dlarray(depth, 'SSCB'); % depth
                 end
 
             end

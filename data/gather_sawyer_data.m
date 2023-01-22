@@ -1,27 +1,93 @@
-%% config cam
-% m = mobiledev;
-% cam = camera(m,'back');
-% cam.Resolution = '1280x720';
-% cam.Autofocus = 'on';
-%%
-% pause(5)
-% img = snapshot(cam, 'immediate');
-% imshow(img)
-
 %% init ros
 rosshutdown()
 rosinit('http://192.168.1.10:11311')
 robot = Sawyer();
 joint_sub = rossubscriber('/robot/joint_states', 'DataFormat','struct');
 
-% head_img_sub = rossubscriber('/io/internal_camera/head_camera/image_raw', 'DataFormat','struct');
-% img = rosReadImage(head_img_sub.receive());
-% imshow(img)
+%% load constNet
+load('constNet.mat')
+
+%% get image from hand camera
+close all
+while 1
+    cam = webcam();
+    img = cam.snapshot();
+    image(img)
+end
+%%
+img = imresize(img, [720 1280]);
+imwrite(img, 'data/0_0.jpg')
+img = dlarray(double(img)./255, 'SSCB');
+
+%% train constNet
+% fov = 69;
+% objectsPred = {'book', 'iphone_box'};
+% 
+% for object = objectsPred
+%     findInitMatch(constNet, img, object{1})
+% end
+% constNet = resetConstNet(constNet, objects);
+% % % clearCache(constNet)
+% 
+% setDetectObjects(constNet, objectsPred)
+% for i = 1:5
+%     constNet = trainConstNet(constNet, img, objectsPred, 0.00003);
+% end
+
+%% train fullTFNet
+fov = 69;
+objectsPred = {'book', 'iphone_box'};
+
+Z = featureNet.predict(img);
+
+clearCache(fullTFNet)
+% for object = objectsPred
+%     findInitMatch(fullTFNet, img, object{1})
+% end
+
+
+setDetectObjects(fullTFNet, objectsPred)
+for i = 1:5
+    fullTFNet = trainFullTFNet(fullTFNet, img, Z, objectsPred, 5E-2);
+end
+
+%%
+close all
+setSkipNerf(fullTFNet, false);
+
+% [map, state] = getNetOutput(constNet, img, dlarray(1,'CB'));
+[map, state] = getfullTFNetOutput(fullTFNet, img, Z);
+
+plotAllCorrespondence(fullTFNet, 1)
+plotImageMSE(fullTFNet, img)
+
+%%
+close all
+Trobot_cam2 = getTrobot_cam(robot, joint_sub.LatestMessage);
+
+% while 1
+    robot.setJointsMsg(joint_sub.receive());
+    plotPointCloud(robot, fullTFNet, objects, {map}, Trobot_cam2)
+    plotTF(Trobot_cam2, '-')
+    drawnow
+% end
+
+
+%% plot all transforms
+% close all
+% robot.plotObject
+% for b = 1:length(robot.bodyNames)
+%     Trobot_cam2 = robot.getBodyTransform(b);
+% 
+% robot.setJointsMsg(joint_sub.receive());
+%     plotTF(Trobot_cam2, '-')
+%     drawnow
+% end
 
 %% joint reading
 % tmp = load("calibrate/T.mat");
 % Toffset = tmp.T;
-% 
+%
 % robot.bodyNames{realSenseInd}
 gripperBaseInd = 18;
 gripperBaseInd = 24; % cam link
@@ -34,10 +100,9 @@ while 1
     hold off
     robot.plotObject
     hold on
-% 
+
     T = robot.getBodyTransform(gripperBaseInd);
-    %     T = T*Tc1_c2;
-%     T = T*Toffset;
+
     point = T(1:3,end);
     line =  [point point+T(1:3,1)*.15];
     hold on
@@ -50,20 +115,20 @@ while 1
     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
 
 
-    plotPointCloud(robot, constNet, objects, maps(2), Trobot_background)
+    plotPointCloud(robot, fullTFNet, objects, {map}, Trobot_cam2)
 
 
-%     T = robot.getBodyTransform(realSenseInd);
-%     point = T(1:3,end);
-%     line =  [point point+T(1:3,1)*.05];
-%     hold on
-%     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','r')
-%     line =  [point point+T(1:3,2)*.05];
-%     hold on
-%     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','g')
-%     line =  [point point+T(1:3,3)*.05];
-%     hold on
-%     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
+    %     T = robot.getBodyTransform(realSenseInd);
+    %     point = T(1:3,end);
+    %     line =  [point point+T(1:3,1)*.05];
+    %     hold on
+    %     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','r')
+    %     line =  [point point+T(1:3,2)*.05];
+    %     hold on
+    %     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','g')
+    %     line =  [point point+T(1:3,3)*.05];
+    %     hold on
+    %     plot3(line(1,:), line(2,:), line(3,:),'MarkerSize',10, 'Marker','.', 'Color','b')
 
     drawnow
 
