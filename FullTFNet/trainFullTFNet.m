@@ -1,9 +1,9 @@
-function fullTFNet = trainFullTFNet(fullTFNet, imgs, Z, objects, thresh)
-numImages = size(imgs, 4);
+function fullTFNet = trainFullTFNet(fullTFNet, inputs, targets, objects, thresh)
+batchSize = length(inputs);
 
 initialLearnRate = 2e-1;
-decay = 0.02;
-momentum = 0.5;
+decay = 0.05;
+momentum = 0.85;
 velocity = [];
 
 iteration = 0;
@@ -14,27 +14,29 @@ setSkipNerf(fullTFNet, false);
 
 totalGrad = 1000000;
 
+
 while totalGrad > thresh || iteration < 100
     tic
-%     if mod(iteration, 401) == 0
-%         setSkipNerf(fullTFNet, false);
-%     else
-        
-%     end
+    %     if mod(iteration, 401) == 0
+    %         setSkipNerf(fullTFNet, false);
+    %     else
 
-    [loss, gradients, state] = dlfeval(@FullTFModelGradients, fullTFNet, imgs, Z, objects);
+    %     end
+
+    [loss, gradients, state] = dlfeval(@FullTFModelGradients, fullTFNet, inputs, targets, objects);
     loss
     if isempty(gradients)
-         break;
+        break;
     end
-    gradients = thresholdL2Norm(gradients, .1, objects);
+    gradients = thresholdL2Norm(gradients, .3, objects);
 
-    learnRate = initialLearnRate/(1 + decay*iteration);
+    decayFactor = 1/(1 + decay*iteration);
+    learnRate = initialLearnRate*decayFactor;
     [fullTFNet, velocity] = sgdmupdate(fullTFNet, gradients, velocity, learnRate, momentum);
 
     if mod(iteration, 10000000000000000) == 0
         iteration
-        index = mod(index + 1, numImages);
+        index = mod(index + 1, batchSize);
         subplot(1,1,1)
         plotAllCorrespondence(fullTFNet, index+1)
     end
@@ -54,9 +56,9 @@ while totalGrad > thresh || iteration < 100
         end
     end
 
-    totalGrad
+    totalGrad = totalGrad*decayFactor;
 
-    
+
 end
 
 end

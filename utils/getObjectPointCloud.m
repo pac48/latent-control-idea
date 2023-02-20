@@ -1,12 +1,6 @@
-function [points, colors] =  getObjectPointCloud(map, object, fl, fx, fy)
+function [points, colors] =  getObjectPointCloud(img, depth, object, fl, fx, fy)
 points = [];
 colors = [];
-
-keyDepth = [object '_nerf_NerfLayer/depth'];
-keyImg = [object '_nerf_NerfLayer/imgNerf'];
-if ~map.isKey(keyImg) || ~map.isKey(keyDepth)
-    return
-end
 
 % Tcam_background = extractdata(map('background_nerf_T_world_2_cam'));
 % Tbackground_cam = inv(Tcam_background);
@@ -27,8 +21,17 @@ scale = mapScale(object);
 % scale = 0.6745;
 % % scale = .5;
 
-depth = scale*extractdata(map(keyDepth));
-img = extractdata(map(keyImg));
+% depth = scale*extractdata(map(keyDepth));
+% img = extractdata(map(keyImg));
+
+if isa(depth, 'dlarray')
+    depth = extractdata(depth);
+end
+if isa(img, 'dlarray')
+    img = extractdata(img);
+end
+
+depth = scale*depth;
 
 if isempty(img)
     return

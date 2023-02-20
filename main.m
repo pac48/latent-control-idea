@@ -36,7 +36,8 @@ imageSize = [h, w];
 
 
 loftr = LoFTR();
-allObjects = {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block'}; %, , 'plate', 'blue_block', 'fork'
+% allObjects = {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block'}; %, , 'plate', 'blue_block', 'fork'
+allObjects = {'book', 'iphone_box'};
 % objects = {'background'};
 
 tmp = cellfun(@(x) ['nerf_' x], allObjects, 'UniformOutput', false);

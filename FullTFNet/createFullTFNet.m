@@ -1,8 +1,11 @@
-function fullTFNet =  createFullTFNet(constNet, TFNet)
+function fullTFNet =  createFullTFNet(constNet, TFNet, skills)
 lgraph = constNet.layerGraph;
 
 feature_layer_name = 'feature_input';
 lgraph = removeLayers(lgraph, feature_layer_name);
+feature_Trobot_cam2_layer_name = 'Trobot_cam2_input';
+% lgraph = removeLayers(lgraph, feature_Trobot_cam2_layer_name);
+
 l = 1;
 while l <= length(lgraph.Layers)
     layer = lgraph.Layers(l);
@@ -43,14 +46,18 @@ for l = 1:length(TFlgraph.Layers)
     end
 end
 
-
+nerfNameMap = containers.Map();
 for object = allObjects
     name = object{1};
     TFname = [name '_TF_FC_Layer'];
     Scalename = [name 'scaleLayer'];
     Nerfname = [name '_nerf_NerfLayer/in1'];
     TFLayername = [name '_nerf_TFLayer/in2'];
+    TFRobotCam2Layername = [name '_nerf_NerfLayer/in3'];
     TFDummyName = [name '_nerf_T_world_2_cam'];
+
+    nerfNameMap(name) = Nerfname;
+
     %     PointCamName = [name '_nerf_TFLayer/points_cam'];
     %     DummyPointCamName = [name '_nerf_TFLayer/points_cam'];
 
@@ -63,9 +70,23 @@ for object = allObjects
     lgraph = lgraph.connectLayers(Scalename, TFname);
     lgraph = lgraph.connectLayers(TFname, Nerfname);
     lgraph = lgraph.connectLayers(TFname, TFLayername);
+%     lgraph = lgraph.connectLayers(feature_Trobot_cam2_layer_name, TFRobotCam2Layername);
 
     lgraph = lgraph.connectLayers(TFname, TFDummyName);
 
+end
+for i = 1:length(skills)
+    tmp = skills{i};
+    skillName = tmp{1};
+    object = tmp{2};
+    skillName = [skillName '_' object];
+    nerfLayerName = nerfNameMap(object);
+    tmp = split(nerfLayerName,'/');
+    nerfLayerName = tmp{1};
+
+    psmLayer = PSMLayer(skillName, 9, 200, 1000);
+    lgraph = lgraph.addLayers(psmLayer);
+    lgraph = lgraph.connectLayers([nerfLayerName '/Trobot_object'], [psmLayer.Name]);
 end
 % close all
 % plot(lgraph)

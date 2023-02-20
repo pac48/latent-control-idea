@@ -10,10 +10,10 @@ end
 pointNerf = map(nerfPointKey);
 
 % if strcmp(name, 'iphone_box')
-    d = sqrt(sum(pointNerf.^2, 1));
-    if any(d < .8)
-        keyboard
-    end
+d = sqrt(sum(pointNerf.^2, 1));
+if any(d < .8)
+    warning('too close to camera')
+end
 % end
 % fl = 1;
 mkptsNerf = projectPoints(pointNerf);

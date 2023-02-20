@@ -1,12 +1,12 @@
 function loss = getObjectLoss(realPoints2D, nerfPoints2D, meanPenalty, rotPenalty)
-
+% 
 % nerfPoints2DMean = mean(nerfPoints2D,2);
 % realPoints2DMean = mean(realPoints2D,2);
 % nerfPoints2DZero = nerfPoints2D - nerfPoints2DMean;
 % realPoints2DZero = realPoints2D - realPoints2DMean;
 % pointDiff = extractdata(realPoints2DZero-nerfPoints2DZero);
 % pointSum = sum(abs(pointDiff), 1);
-% percentiles = prctile(pointSum, 90);
+% percentiles = prctile(pointSum, 50);
 % inds = 1:length(pointSum);
 % inds = inds(pointSum < percentiles);
 % % inds = inds(pointSum <= .1);
