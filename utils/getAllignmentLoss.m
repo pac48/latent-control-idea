@@ -12,11 +12,21 @@ if plotStuff
 end
 for i = 1:length(objects)
     object = objects{i};
-    key = [object '_nerf_T_world_2_cam'];
-    T = map(key);
-    if isempty(T)
+    keycam2world = [object '_nerf_T_world_2_cam'];
+    keyBaseT = [object '_nerf_NerfLayer/baseT' ];
+
+    Tcam2world = map(keycam2world);
+    baseT = extractdata(map(keyBaseT));
+    if isempty(Tcam2world)
         continue
     end
+
+    camPoint = map([object '_nerf_TFLayer/points_cam']);
+    if mean(camPoint(3, :)) > -.1
+        loss = loss + 1*sum((Tcam2world - inv(baseT)).^2,'all');
+        continue;
+    end
+    
 
     [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
     if numel(mkptsReal) > 2 && strcmp(object, 'background')

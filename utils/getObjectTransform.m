@@ -27,10 +27,11 @@ end
 points = Trobot_cam1(1:3, 1:3)*points + Trobot_cam1(1:3, end);
 
 if  ~strcmp(object, 'background')
-    Trobot_object = eye(4);
-    Trobot_object(1:3, end) = mean(points, 2);
+%     Trobot_object = eye(4);
+%     Trobot_object(1:3, end) = mean(points, 2);
     Tcam2_object = extractdata(map([object '_nerf_T_world_2_cam']));
-    Trobot_object(1:3, 1:3) = Trobot_cam1(1:3, 1:3)*Tcam2_object(1:3, 1:3);
+%     Trobot_object(1:3, 1:3) = Trobot_cam1(1:3, 1:3)*Tcam2_object(1:3, 1:3);
+    Trobot_object = Trobot_cam1*Tcam2_object;
 else
     Trobot_object = eye(4);
 end

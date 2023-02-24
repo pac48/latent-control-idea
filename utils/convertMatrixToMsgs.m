@@ -21,11 +21,12 @@ for i = 1:length(t)
     [JWrist, JFingerL, JFingerR] = robot.getControlPointsJacobians(bodyNames);
     J = cat(1, JWrist(1:3, :), JFingerL(1:3, :), JFingerR(1:3, :));
 
-    pos = x(1:3);
-    dir1 = (x(4:6) - pos);
-    dir2 = (x(7:9) - pos);
-    dir1 = dir1./norm(dir1);
-    dir2 = dir2./norm(dir2);
+
+    posRef = x(1:3);
+    dir1Ref = x(4:6);%(x(4:6) - posRef);
+    dir2Ref = x(7:9);%(x(7:9) - posRef);
+    dir1Ref = dir1Ref./norm(dir1Ref);
+    dir2Ref = dir2Ref./norm(dir2Ref);
 
     posCur = xCur(1:3); 
     dir1Cur = (xCur(4:6) - posCur);
@@ -33,27 +34,36 @@ for i = 1:length(t)
     dir1Cur = dir1Cur./norm(dir1Cur);
     dir2Cur = dir2Cur./norm(dir2Cur);
 
-
-    errorPos = xd(1:3) + 1*(pos - posCur);
+    errorPos = xd(1:3) + 2*(posRef - posCur);
     
-    errorDir1 = acos(dot(dir1,dir1Cur)); % angle rad
-    errorAxis1 =  -.4*errorDir1*cross(dir1, dir1Cur);
-    
-    errorDir2 = acos(dot(dir1,dir1Cur)); % angle rad
-    errorAxis2 =  -.4*errorDir2*cross(dir2, dir2Cur);
+    errorAxis1 =  cross(dir1Ref, dir1Cur);
+    errorAxis1 = errorAxis1./norm(errorAxis1);
+    errorDir1 = acos(dot(dir1Ref,dir1Cur)); % angle rad
+    errorAxis1 =  -20*errorDir1*errorAxis1;
 
+
+    errorAxis2 =  cross(dir2Ref, dir2Cur);
+    errorAxis2 = errorAxis2./norm(errorAxis2);
+    errorDir2 = acos(dot(dir2Ref,dir2Cur)); % angle rad
+    errorAxis2 =  -20*errorDir2*errorAxis2;
 
      A = cat(1, JWrist(1:3, :), JWrist(4:6, :), JWrist(4:6, :));
      b = cat(1, errorPos, errorAxis1, errorAxis2);
 
 %      A = cat(1, JWrist(1:3, :), JWrist(4:6, :));
-%      b = cat(1, errorPos, errorAxis1);
+%      b = cat(1, errorPos, zeros(3,1));
 
+     reg = .1*eye(size(JWrist,2));
+     A = cat(1,A,reg);
+     b = cat(1, b, zeros(size(reg,1),1));
 
      b = double(b);
      qd = lsqlin(A, b);
 
-    norm(errorPos)
+    norm((posRef - posCur))
+
+
+
 
 %     value = xd.*[1;1;1;0;0;0;0;0;0] + 1*error.*[1;1;1;  0;0;0;  0;0;0];
 %     qd = pinv(J)*value;
@@ -87,7 +97,11 @@ end
 % dt = mean(diff(t));
 error = 1;
 % while norm(error) > .05
-for it = 1:500
+
+x(4:6) = x(4:6)+x(1:3);
+x(7:9) = x(7:9)+x(1:3);
+
+for it = 1:50
     ti = ti + dt;
     i = i + 1;
     
@@ -97,11 +111,14 @@ for it = 1:500
 
     [JWrist, JFingerL, JFingerR] = robot.getControlPointsJacobians(bodyNames);
     J = cat(1, JWrist(1:3, :), JFingerL(1:3, :), JFingerR(1:3, :));
+  
+%     JWrist = robot.getControlPointsJacobians(bodyNames(1));
+%     J = cat(1, JWrist(1:3, :));
 
     error = x - xCur;
 
-    xd = .5*xd;
-    value = xd + 1*error;
+%     xd(1:3) = .5*xd;
+    value = 0*xd + 1*error;
     qd = pinv(J)*value;
 
     if max(qd) > .2

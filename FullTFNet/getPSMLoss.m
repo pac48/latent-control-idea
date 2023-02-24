@@ -10,7 +10,7 @@ for ss = 1:length(allKeys)
 skillName = allKeys{ss};
 
 psmKey = ['PSMLayer_' skillName '/psm'];
-psmDKey = ['PSMLayer_' skillName '/psmD'];
+psmDDKey = ['PSMLayer_' skillName '/psmDD'];
 axisKey = ['PSMLayer_' skillName '/axis'];
 Trobot_goalKey = ['PSMLayer_' skillName '/Trobot_goal'];
 
@@ -19,7 +19,7 @@ if ~map.isKey(psmKey) || ~map.isKey(Trobot_goalKey) || ~target.isKey(skillName)
 end
 
 psm = map(psmKey);
-psmD = map(psmDKey);
+psmDD = map(psmDDKey);
 axis = map(axisKey);
 
 Trobot_goal = map(Trobot_goalKey);
@@ -79,10 +79,11 @@ end
 lossVel = mean( (scale*XdprimeInterp(:,1,:) - scale*psm(:,1,:)).^2, 'all');
 
 lossPos = mean( (scale*XprimeInterp(:,2:end,:) - scale*psm(:,2:end,:)).^2, 'all');
-lossEnd = mean( (scale*XprimeInterp(end,2:end,:) - scale*psm(end,2:end,:)).^2, 'all');
-% lossPosD = 10*mean( (Xdprime(:,2:end,:) - psmD(:,2:end,:)).^2, 'all');
+lossEnd = 10*mean( (scale*XprimeInterp(end,2:end,:) - scale*psm(end,2:end,:)).^2, 'all');
 
-loss = loss + lossVel + lossPos + lossEnd;% + lossPosD;
+lossAcc =  .01*mean((psmDD(:,2:end,:)).^2, 'all');
+
+loss = loss + lossVel + lossAcc + lossPos + lossEnd;% + lossPosD;
 % loss = sum((Tgoal_robot-1).^2, 'all');
 
 % xd1hat = psm(1, :);

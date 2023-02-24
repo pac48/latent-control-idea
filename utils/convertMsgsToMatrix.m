@@ -6,10 +6,14 @@ X = zeros(length(bodyNames)*3, length(allMsg));
 for i = 1:length(allMsg)
     msg = allMsg(i);
     robot.setJointsMsg(msg);
-    for b = 1:length(bodyNames)
+    b = 1;
+    bodyName = bodyNames{b};
+    T = robot.getBodyTransform(bodyName);
+    X((1:3) +(b-1)*3, i) = T(1:3, end);
+    for b = 2:length(bodyNames)
         bodyName = bodyNames{b};
         T = robot.getBodyTransform(bodyName);
-        X((1:3) +(b-1)*3, i) = T(1:3, end);
+        X((1:3) +(b-1)*3, i) = T(1:3, end) - X(1:3, i);
     end
 
 end

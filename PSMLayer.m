@@ -7,6 +7,7 @@ classdef PSMLayer < nnet.layer.Layer & nnet.layer.Formattable
         axis
         A
         Ad
+        Add
     end
     properties(Learnable)
         weights
@@ -26,7 +27,7 @@ classdef PSMLayer < nnet.layer.Layer & nnet.layer.Formattable
             % Set layer description.
             layer.Description = "generate PSM trajectory from predicted input parameters";
 
-            layer.OutputNames = {'psm', 'psmD', 'axis','Trobot_goal', 'Trobot_object'};
+            layer.OutputNames = {'psm', 'psmD', 'psmDD', 'axis','Trobot_goal', 'Trobot_object'};
 
             % Set layer type.
             layer.Type = "PSMLayer";
@@ -45,16 +46,22 @@ classdef PSMLayer < nnet.layer.Layer & nnet.layer.Formattable
             Ad = zeros(length(layer.axis), layer.numBasis);
             Ad(:, 1:layer.numBasis-1) = radialBasisD(layer.axis', c, width);
 
+            Add = zeros(length(layer.axis), layer.numBasis);
+            Add(:, 1:layer.numBasis-1) = radialBasisDD(layer.axis', c, width);
+            
+
             layer.A = dlarray(A, 'SSB');
-            layer.Ad = dlarray(Ad, 'SSB');            
+            layer.Ad = dlarray(Ad, 'SSB');
+            layer.Add = dlarray(Add, 'SSB');
             layer.axis = dlarray(layer.axis, 'SB');
 
         end
 
-        function [psm, psmD, axisOut, Trobot_goal, Trobot_objectOut] = predict(layer, Trobot_object)
+        function [psm, psmD, psmDD, axisOut, Trobot_goal, Trobot_objectOut] = predict(layer, Trobot_object)
             % Trobot_object is predicted by nerf
             psm = dlarray([], 'SSB');
             psmD = dlarray([], 'SSB');
+            psmDD = dlarray([], 'SSB');
             Trobot_goal = dlarray([], 'SSB');
             Trobot_objectOut = dlarray([], 'SSB');
             axisOut = dlarray([], 'SB');
@@ -81,10 +88,12 @@ classdef PSMLayer < nnet.layer.Layer & nnet.layer.Formattable
             
             x = pagemtimes(stripdims(layer.A), layer.weights);
             xd = pagemtimes(stripdims(layer.Ad), layer.weights);
+            xdd = pagemtimes(stripdims(layer.Add), layer.weights);
             
 
             psm = dlarray(reshape(x, size(layer.A,1), []), 'SSB');
-            psmD = dlarray(reshape(x, size(layer.Ad,1), []), 'SSB');
+            psmD = dlarray(reshape(xd, size(layer.Ad,1), []), 'SSB');
+            psmDD = dlarray(reshape(xdd, size(layer.Ad,1), []), 'SSB');
             axisOut = dlarray(layer.axis, 'SB');
             Trobot_goal = dlarray(Trobot_goal, 'SSB');
             Trobot_objectOut = dlarray(Trobot_object, 'SSB');

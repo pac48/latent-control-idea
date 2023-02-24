@@ -25,6 +25,7 @@ Cs = xy./nxny;
 Cs(xy==0) = -inf;
 
 colorCost = floor(100*(1-Cs'));
+% colorCost = floor(300*(1-Cs'));
 
 % colorCost = sum(abs(colorsNerf - colorsReal)./3, 2);
 

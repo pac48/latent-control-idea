@@ -1,3 +1,4 @@
+
 classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
     properties
         objNames
@@ -31,7 +32,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             % Set layer type.
             layer.Type = "NerfLayer";
             layer.InputNames = {'in1', 'in2', 'in3'};
-            layer.OutputNames = {'pointsNerf', 'mkptsReal', 'mkptsNerf', 'imgReal', 'imgNerf', 'depth', 'Trobot_object'};
+            layer.OutputNames = {'pointsNerf', 'mkptsReal', 'mkptsNerf', 'imgReal', 'imgNerf', 'depth', 'Trobot_object', 'baseT'};
 
             assert(length(objNames)==1, 'cannot handle multible objects')
             layer.objNames = objNames;
@@ -64,6 +65,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             layer.h.structure.(layer.Name).mconf = {};
             layer.h.structure.(layer.Name).points = {};
             layer.h.structure.(layer.Name).Trobot_object = {};
+            layer.h.structure.(layer.Name).baseT = eye(4);
             %             layer.h.structure.(layer.Name).indT = {};
             %             layer.h.structure.(layer.Name).angle = {};
         end
@@ -108,16 +110,22 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 angles = 0;%-90 180];
                 for angle = angles %tmp
                     for i = 1:length(layer.initNerfImgs)
-                        T = layer.allT{i};
+                        T = layer.allT{i}; % cam to world
                         imgNerf = layer.initNerfImgs{i};
                         depth = layer.initNerfDepths{i};
                         [mkptsNerf, mkptsReal, points, mconf] = layer.matchImage(imReal(:,:,:,b), imgNerf, depth, T, angle);
+%                         global nerf
+%                         global fov
+%                         nerf.setTransform({layer.objNames{1}, T})
+%                         [img, depth] = nerf.renderObject(layer.height, layer.width, fov, layer.objNames{1});
+%                         why
 
                         if size(points, 2) > numPoint
                             numPoint = size(points, 2);
                             inds{b} = i;
                             foundAngles{b} = angle;
-                            layer.updateState(b, mkptsNerf, mkptsReal, points, mconf, imgNerf, imReal(:,:,:,b), depth)
+                            layer.h.structure.(layer.Name).baseT = T;
+                            layer.updateState(b, mkptsNerf, mkptsReal, points, mconf, uint8(255*imgNerf), imReal(:,:,:,b), depth)
                         end
                     end
                     %                     if numPoint ~=2
@@ -135,8 +143,11 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             global nerf
             global fov
 
+
             T = inv(T); % cam to world
             T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([0 0 1 pi*angle/180]);
+
+%             T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([1 0 0 pi]); % this make camera look backwards
 
             angle = angle*0;
 
@@ -144,8 +155,10 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             nerf.setTransform({layer.objNames{1}, T})
             [img, depth] = nerf.renderObject(layer.height, layer.width, fov, layer.objNames{1});
-
             imgNerf = uint8(255*img);
+
+%             T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([1 0 0 -pi]); % this make camera look forwards again
+
             [mkptsNerf, mkptsReal, points, mconf] =  layer.matchImage(imReal, imgNerf, depth, T, angle);
 
         end
@@ -427,7 +440,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         end
 
-        function Trobot_object = getObjectTransform(layer, img, depth, Tcam2_object, Trobot_cam2)
+        function Trobot_object = getObjectTransform(layer, img, depth, Tcam1_object, Trobot_cam2)
             % points: all points for whole depth map
             Trobot_object = [];
 
@@ -451,9 +464,14 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             points = Trobot_cam1(1:3, 1:3)*points + Trobot_cam1(1:3, end);
 
             if  ~contains(layer.Name, 'background')
-                Trobot_object = eye(4);
-                Trobot_object(1:3, end) = mean(points, 2);
-                Trobot_object(1:3, 1:3) = Trobot_cam1(1:3, 1:3)*Tcam2_object(1:3, 1:3);
+%                 Trobot_object = eye(4);
+%                 Trobot_object(1:3, end) = mean(points, 2);
+%                 Trobot_object(1:3, 1:3) = Trobot_cam1(1:3, 1:3)*Tcam2_object(1:3, 1:3);
+%                 Trobot_object = Trobot_cam1*Tcam1_object;
+
+                Trobot_object = Trobot_cam1*Tcam1_object;
+%                 Tobject_cam1 = inv(Tcam1_object);
+%                 Trobot_object(1:3, end) = Tobject_cam1(1:3,end); 
             else
                 Trobot_object = eye(4);
             end
@@ -461,7 +479,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         end
 
-        function [pointsOut, mkptsRealNormalizedOut, mkptsNerfOut, imgRealOut, imgNerfOut, depthOut, Trobot_objectOut] = predict(layer, Tin, Img, Trobot_cam2)
+        function [pointsOut, mkptsRealNormalizedOut, mkptsNerfOut, imgRealOut, imgNerfOut, depthOut, Trobot_objectOut, baseTOut] = predict(layer, Tin, Img, Trobot_cam2)
             % X: xyz rpy (6 x batch) this is transform from world to camera
             % coordinates
             % Y: input image (h x w x 3 x b)
@@ -479,6 +497,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             imgNerfOut = dlarray([], 'SSCB'); % imgNerf
             depthOut = dlarray([], 'SSCB'); % depth
             Trobot_objectOut  = dlarray([], 'SSB'); % Trobot_object
+            baseTOut = dlarray(layer.h.structure.(layer.Name).baseT, 'SSB'); % baseTOut
 
             if ~any(cellfun(@(x) strcmp(x, layer.objectName),  layer.h.structure.detectObjects))
                 return
@@ -584,7 +603,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
         end
 
-        function [dLdW, dLdX, dLdY] = backward(layer, W, X, Y, Z1, Z2, Z3, Z4, Z5, Z6, Z7, dLdZ1, dLdZ2, dLdZ3, dLdZ4, dLdZ5, dLdZ6, dLdZ7, u3)
+        function [dLdW, dLdX, dLdY] = backward(layer, W, X, Y, Z1, Z2, Z3, Z4, Z5, Z6, Z7, Z8, dLdZ1, dLdZ2, dLdZ3, dLdZ4, dLdZ5, dLdZ6, dLdZ7, dLdZ8, u3)
             % [dLdX, dLdAlpha] = backward(layer, X, ~, dLdZ, ~)
             % backward propagates the derivative of the loss function
             % through the layer.

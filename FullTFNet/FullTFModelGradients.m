@@ -13,8 +13,9 @@ for ind = 1:length(inputs)
     %     [map, state] = getNetOutput(fullTFNet, img(:,:,:, ind), Z(:, ind));
     [map, state] = getfullTFNetOutput(fullTFNet, input);
 
-    %     plotStuff = false;
-    plotStuff = true;
+        plotStuff = false;
+%     plotStuff = true;
+
     loss = loss + getAllignmentLoss(map, objects, plotStuff, ind, length(inputs));
 
     loss = loss + getPSMLoss(map, target);

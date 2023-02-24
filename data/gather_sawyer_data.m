@@ -23,7 +23,8 @@ fov = 69;
 w = 1280;
 h = 720;
 imageSize = [h, w];
-allObjects = {'book', 'iphone_box'};
+% allObjects = {'book'};%, 'iphone_box'};
+allObjects = {'drawer'};%, 'new_plate', 'jug', 'salt'};
 tmp = cellfun(@(x) ['nerf_' x], allObjects, 'UniformOutput', false);
 nerf  = Nerf(tmp);
 
@@ -40,7 +41,8 @@ jointCommandPub = rospublisher('/robot/limb/right/joint_command', 'DataFormat','
 featureNet = createFeatureNet(imageSize);
 
 %% create TFNet
-objects = {'book', 'iphone_box'};
+% objects = {'book', 'iphone_box'};
+objects = allObjects;
 TFNet = createTFNet(featureNet, objects);
 
 %% create constNet
@@ -53,9 +55,17 @@ tmp = load('constNet.mat');
 constNet = tmp.constNet;
 
 %% create FullTFNet
+% fullTFNet = createFullTFNet(constNet, TFNet, ...
+%     {{'place', 'book'} } );
+% 
 fullTFNet = createFullTFNet(constNet, TFNet, ...
-    { {'grab', 'iphone_box'}, ...
-    {'place', 'book'} } );
+    { {'open', 'drawer'}} ...
+    );
+
+
+% fullTFNet = createFullTFNet(constNet, TFNet, ...
+%     {} ...
+%     );
 
 %% get image from hand camera
 close all
@@ -98,20 +108,38 @@ close all
 playBackDemonstration(robot, bookMsgs)
 
 
+%% collect open drawer demonstration
+timeout = 15;
+drawerMsgs = collectDemonstration(robot, joint_sub, timeout);
+
+bodyNames = {'right_electric_gripper_base','right_gripper_l_finger_tip', 'right_gripper_r_finger_tip'};
+interpLength = 1000;
+[t, X, Xd] = convertMsgsToMatrix(robot, drawerMsgs, bodyNames, interpLength);
+drawerData = {t, X, Xd}; 
+
+%% playback drawer box demonstration
+close all
+playBackDemonstration(robot, drawerMsgs)
+
+
 %% train fullTFNet
 fov = 69;
-objectsPred = {'book', 'iphone_box'};
+% objectsPred = {'book', 'iphone_box'};
+objectsPred = allObjects;%(2:end);
 
 Z = featureNet.predict(img);
 Trobot_cam2 = getTrobot_cam(robot, initMsg);
+
 inputs{1} = containers.Map({'image_input', 'feature_input', 'Trobot_cam2_input'}, {img, Z, dlarray(reshape(Trobot_cam2, [], 1), 'CB')});
 % targets{1} = containers.Map({'grab_iphone_box', 'place_book'}, {iphoneBoxData, bookData});
+% targets{1} = containers.Map({'open_drawer'}, {drawerData});
+% targets{1} = containers.Map({'place_book'}, {bookData});
 targets{1} = containers.Map();
 
 clearCache(fullTFNet)
-% for object = objectsPred
-%     findInitMatch(fullTFNet, img, object{1})
-% end
+for object = objectsPred
+    findInitMatch(fullTFNet, img, object{1})
+end
 
 setDetectObjects(fullTFNet, objectsPred)
 for i = 1:5
@@ -130,26 +158,32 @@ plotImageMSE(fullTFNet, img)
 
 %% visualize point cloud
 close all
-Trobot_goal1 = map('PSMLayer_grab_iphone_box/Trobot_goal');
-Trobot_goal2 = map('PSMLayer_place_book/Trobot_goal');
+% Trobot_goal1 = map('PSMLayer_grab_iphone_box/Trobot_goal');
+% % Trobot_goal2 = map('PSMLayer_place_book/Trobot_goal');
+
+Trobot_goal1 = map('PSMLayer_open_drawer/Trobot_goal');
+
 
 % while 1
-    robot.setJointsMsg(initMsg);
-    hold off
+%     robot.setJointsMsg(initMsg);
+    robot.setJointsMsg(joint_sub.receive());
+    hold off    
+
     robot.plotObject()
-    plotTF(Trobot_cam2, '-')
-    plotTF(Trobot_goal1, '-')
-    plotTF(Trobot_goal2, '-')
-    
     plotPointCloud(robot, fullTFNet, objects, {map}, Trobot_cam2)
+
+%     plotTF(Trobot_cam2, '-')
+    plotTF(Trobot_goal1, '-')
+%     plotTF(Trobot_goal2, '-')
+
+
     drawnow
 % end
 
 %% visualize demonstration with point cloud
-figure
-playBackDemonstration(robot, allMsg)
-plotTF(Trobot_goal, '-')
-plotPointCloud(robot, fullTFNet, objects, {map}, Trobot_cam2)
+% playBackDemonstration(robot, iphoneBoxMsgs)
+% plotTF(Trobot_goal, '-')
+% plotPointCloud(robot, fullTFNet, objects, {map}, Trobot_cam2)
 
 %% generate PSM trajecory and preview it
 robot.setJointsMsg(joint_sub.receive());
@@ -157,7 +191,9 @@ robot.setJointsMsg(joint_sub.receive());
 robot.setJointsMsg(joint_sub.receive());
 
 % skillName = 'grab_iphone_box';
-skillName = 'place_book';
+% skillName = 'place_book';
+skillName = 'open_drawer';
+
 [tPSM, XPSM, XdPSM] = generatePSMTraj(robot, bodyNames, map, skillName);
 
 msgs = convertMatrixToMsgs(robot, bodyNames, joint_sub, tPSM, XPSM, XdPSM);

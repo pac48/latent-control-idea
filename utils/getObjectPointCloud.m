@@ -8,8 +8,8 @@ colors = [];
 % mapScale = containers.Map( {'background', 'book', 'iphone_box'}, {1.6467*.45, 0.4958*.35, 0.4958*.35});
 
 objScale = 0.1538;
-mapScale = containers.Map( {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block'}, ...
-    {.5*1.25, objScale, objScale, objScale, objScale, objScale});
+mapScale = containers.Map( {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block', 'drawer', 'new_plate', 'jug', 'napkin', 'pepper', 'salt'}, ...
+    {.5*1.25, objScale, objScale, objScale, objScale, objScale, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1});
 % postScale = 0.6745;%1.6467/2.4414;
 % postScale = 1.6467/2.4414;
 % postScale = .55;
