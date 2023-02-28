@@ -22,7 +22,7 @@ for i = 1:length(objects)
     end
 
     camPoint = map([object '_nerf_TFLayer/points_cam']);
-    if mean(camPoint(3, :)) > -.1
+    if mean(camPoint(3, :)) > -.02
         loss = loss + 1*sum((Tcam2world - inv(baseT)).^2,'all');
         continue;
     end
@@ -30,6 +30,7 @@ for i = 1:length(objects)
 
     [mkptsNerf, mkptsReal] = getObjectPoints(map, object);
     if numel(mkptsReal) > 2 && strcmp(object, 'background')
+        assert(0)
         loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 250/3, 10000/3);
     elseif numel(mkptsReal) > 2
         loss = loss + getObjectLoss(mkptsReal, mkptsNerf, 25, 2000);

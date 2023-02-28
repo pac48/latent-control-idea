@@ -2,8 +2,6 @@ classdef Nerf < handle
     % Nerf wrapper
 
     properties(Access=private)
-        nerfObjs
-        nameMap
         name2FrameMap
         name2FileMap
         objects_file_path
@@ -11,6 +9,8 @@ classdef Nerf < handle
     properties
         names
         fov_x = 70.8193;
+        nerfObjs
+        nameMap
     end
 
     methods(Access=private)
@@ -81,14 +81,15 @@ classdef Nerf < handle
             end
         end
 
-        function setTransform(obj, varargin)
-            for i = 1:length(varargin)
-                pair = varargin{i};
-                T = pair{2};
-                name = pair{1};
+        function setTransform(obj, name, T)
+
+%             for i = 1:length(varargin)
+%                 pair = varargin{i};
+%                 T = pair{2};
+%                 name = pair{1};
                 tmp = obj.nameMap(name);
                 tmp{1}.setTransform(T);
-            end
+%             end
         end
 
         function allT = name2Frame(obj, name)

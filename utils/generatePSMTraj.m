@@ -37,7 +37,7 @@ xPrimei = xPrimeStart(2:end);
 % xdPrimei = 0*xPrimei;
 
 ind = 1;
-dt = 0.01;
+dt = 0.001;
 ti = 0;
 
 if xPrime1i > 0

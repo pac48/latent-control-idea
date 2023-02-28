@@ -37,7 +37,7 @@ classdef PSMLayer < nnet.layer.Layer & nnet.layer.Formattable
 
             axisLenth = 2;
             layer.axis = linspace(-axisLenth, 0, layer.numSamples);
-            width = axisLenth/200;
+            width = axisLenth/2000; % was 200
             c = linspace(layer.axis(1)-.5, layer.axis(end)+.5, layer.numBasis-1);
 
             A = ones(length(layer.axis), layer.numBasis);

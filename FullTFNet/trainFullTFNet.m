@@ -1,7 +1,7 @@
 function fullTFNet = trainFullTFNet(fullTFNet, inputs, targets, objects, thresh)
 batchSize = length(inputs);
 
-initialLearnRate = 2e-1;
+initialLearnRate = 1e-1;
 decay = 0.05;
 momentum = 0.85;
 velocity = [];

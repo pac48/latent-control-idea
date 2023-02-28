@@ -1,8 +1,9 @@
 %% validate data
 close all
 
-allTasks = {'pickbox', 'placebox', 'opendraw', 'pulldraw'};
-clutter = {'','clutter'};
+
+allTasks = {'pickiphone_box', 'placebook', 'opendrawer', 'pulldrawer'};
+clutter = {'','clutter', 'lighting'};
 
 for j = 1:length(allTasks)
     for c = 1:length(clutter)
@@ -19,7 +20,7 @@ for j = 1:length(allTasks)
             figure;
             imshow(img)
             drawnow
-            title([task ' ' num2str(i)])
+            title([task ' ' num2str(i)], 'Interpreter','none')
             pause(1)
         end
     end

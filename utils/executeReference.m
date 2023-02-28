@@ -41,7 +41,7 @@ time = time*time_scale;
 
 vel = 1;
 tic
-while norm(vel) > .002 || toc < time(end)
+while (norm(vel) > .002 && toc < time(end) + 2) || toc< time(end)
     msg = joint_sub.receive();
     if isempty(msg) || length(msg.Position) < 7
         continue
@@ -87,4 +87,5 @@ while norm(vel) > .002 || toc < time(end)
     send(pubJointCmd, msgJointCmd)
 
 end
+
 end

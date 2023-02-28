@@ -7,19 +7,18 @@ colors = [];
 
 % mapScale = containers.Map( {'background', 'book', 'iphone_box'}, {1.6467*.45, 0.4958*.35, 0.4958*.35});
 
-objScale = 0.1538;
-mapScale = containers.Map( {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block', 'drawer', 'new_plate', 'jug', 'napkin', 'pepper', 'salt'}, ...
-    {.5*1.25, objScale, objScale, objScale, objScale, objScale, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1});
+% objScale = 0.1538;
+% mapScale = containers.Map( {'background', 'book', 'iphone_box', 'plate', 'fork', 'blue_block', 'drawer', 'new_plate', 'jug', 'napkin', 'pepper', 'salt'}, ...
+%     {.5*1.25, objScale, objScale, objScale, objScale, objScale, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1, objScale*1.1});
 % postScale = 0.6745;%1.6467/2.4414;
 % postScale = 1.6467/2.4414;
 % postScale = .55;
 
 postScale = 1;
 
-% scale = mapScale(object)*0.6745*0.8759*0.9172*1.7705*1.0844*.5*1.1;
-scale = mapScale(object);
-% scale = 0.6745;
-% % scale = .5;
+% scale = mapScale(object);
+scale = 1;
+
 
 % depth = scale*extractdata(map(keyDepth));
 % img = extractdata(map(keyImg));
@@ -58,8 +57,8 @@ yPix = -Y(inds);
 % points = vec.*d;
 
 Z = -d;
-X = -(xPix).*Z*fx;
-Y = -(yPix).*Z*fy;
+X = -(xPix).*Z*fx*.8;
+Y = -(yPix).*Z*fy*.8;
 points = [X Y Z];
 
 points = points';  % camera coordinates

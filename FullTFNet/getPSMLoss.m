@@ -40,16 +40,26 @@ Xdprime = permute(Xdprime, [2 1 3]);
 % why
 assert(size(Xprime,3)==1);
 
-scale = 3;
+% % scale = 100;
+% % totalDisplacement = sqrt(sum((X(1:3, end, :) - X(1:3, 1, :)).^2, 1));
+% % displacementLoss = mean( ( scale*(Xprime(end, 1, :) - Xprime(1, 1, :) )  - scale*totalDisplacement ).^2, 'all');
 
-totalDisplacement = sqrt(sum((X(1:3, end, :) - X(1:3, 1, :)).^2, 1));
-displacementLoss = mean( ( scale*(Xprime(end, 1, :) - Xprime(1, 1, :)) - scale*totalDisplacement ).^2, 'all');
+vec = (X(1:3, end, :) - X(1:3, 1, :));
+vec = vec./norm(vec); 
+
+scale = 10;
+displacementLoss = (scale*sum(vec.*Trobot_goal(1:3,1)) - scale)^2;
+
+
+scale = 5;
 originLoss = sum((scale*Xprime(end, 1:3, :)-0).^2, 'all');
 loss = loss + originLoss + displacementLoss;
 
 % scale = 10;
 
 % psmInterp = psm;
+
+Xprime(:,1,:) = linspace(Xprime(1,1,:), Xprime(end,1,:), 1000);
 
 cond = diff(extractdata(Xprime(:,1,:))) > 0;
 while ~all(cond)
@@ -75,15 +85,17 @@ end
 
 
 
+scale = 1;
 
 lossVel = mean( (scale*XdprimeInterp(:,1,:) - scale*psm(:,1,:)).^2, 'all');
 
 lossPos = mean( (scale*XprimeInterp(:,2:end,:) - scale*psm(:,2:end,:)).^2, 'all');
 lossEnd = 10*mean( (scale*XprimeInterp(end,2:end,:) - scale*psm(end,2:end,:)).^2, 'all');
 
-lossAcc =  .01*mean((psmDD(:,2:end,:)).^2, 'all');
+lossAcc =  mean((.001*psmDD(:,2:end,:)).^2, 'all');
 
-loss = loss + lossVel + lossAcc + lossPos + lossEnd;% + lossPosD;
+loss = loss + (lossVel + lossAcc + lossPos + lossEnd)*10;% + lossPosD;
+
 % loss = sum((Tgoal_robot-1).^2, 'all');
 
 % xd1hat = psm(1, :);
@@ -91,7 +103,7 @@ loss = loss + lossVel + lossAcc + lossPos + lossEnd;% + lossPosD;
 if false
     close all
     figure
-    plot(axis, XprimeInterp(:,2:end,:), '--')
+    plot(XprimeInterp(:,1,:), XprimeInterp(:,2:end,:), '--')
     hold on
     plot(axis, psm(:,2:end,:), '-')
 
@@ -103,6 +115,7 @@ end
 
 end
 
+loss = 1*loss;
 lossPoint = loss
 
 

@@ -1,4 +1,3 @@
-
 classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
     properties
         objNames
@@ -14,11 +13,19 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
     methods(Static)
         function llayer = loadobj(layer)
             layer.h.structure.detectObjects = {};
-            layer.h.structure.enableRotation = true;
+            layer.h.structure.enableRotation = false;
             llayer = layer;
         end
     end
     methods
+% %         function slayer = saveobj(layer)
+% %         slayer  = saveobj@super(layer); 
+% %         why
+% %         %             layer.h.structure.detectObjects = {};
+% %         %             layer.h.structure.enableRotation = false;
+% %         %             llayer = layer;
+% %         end
+
         function layer = NerfLayer(name, allT, objNames, h, w)
             % Create a TFLayer.
 
@@ -39,6 +46,13 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             layer.height = h;
             layer.width = w;
             %             layer.fov = fov;
+
+            global nerf
+            nerfObj = nerf.nameMap(objNames{1});
+            nerfObj = nerfObj{1};
+            for i = 1:length(allT)
+                allT{i} = nerfObj.scaleTransform(allT{i});
+            end
             layer.allT = allT;
 
             layer.s = RandStream('mlfg6331_64');
@@ -74,9 +88,20 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             global fov
             fovL = fov;
 
+            
+
             fl = 1;
             fx = fl*2*tand(fovL/2);
             fy = fx*layer.height/layer.width;
+
+%             fx = fx*.8;
+%             fy = fy*.8;
+            
+%             fx  = 2*layer.width/tand(0.5*fov);    
+%             fy  = 2*layer.height/tand(0.5*fov);
+
+
+
         end
 
         function [imgs, depths] = renderInit(layer)
@@ -87,7 +112,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             depths = cell(1, length(layer.allT));
             for i = 1:length(layer.allT)
                 T = layer.allT{i};
-                nerf.setTransform({layer.objNames{1}, T})
+                nerf.setTransform(layer.objNames{1}, T)
                 [imgNerf, depth] = nerf.renderObject(layer.height, layer.width, fov, layer.objNames{1});
                 imgs{i} = imgNerf;
                 depths{i} = depth;
@@ -114,11 +139,6 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                         imgNerf = layer.initNerfImgs{i};
                         depth = layer.initNerfDepths{i};
                         [mkptsNerf, mkptsReal, points, mconf] = layer.matchImage(imReal(:,:,:,b), imgNerf, depth, T, angle);
-%                         global nerf
-%                         global fov
-%                         nerf.setTransform({layer.objNames{1}, T})
-%                         [img, depth] = nerf.renderObject(layer.height, layer.width, fov, layer.objNames{1});
-%                         why
 
                         if size(points, 2) > numPoint
                             numPoint = size(points, 2);
@@ -143,9 +163,37 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             global nerf
             global fov
 
+            angle1 = 0;
+            angle2 = 0;
+            angle3 = 0;
+            xoffset = 0;
+            yoffset = 0;
+            
+            if layer.h.structure.enableRotation %rand(1) > .8
+%                 angle1 = 2*(rand(1)-.5)*180;
+                tmp = rand(1);
+                if tmp < .25 
+                    angle1 = 0;
+                elseif .25  < tmp && tmp < .5
+                     angle1 = 90;
+                elseif .25  < tmp && tmp < .75 
+                     angle1 = -90;
+                else
+                    angle1 = 180;
+                end
+
+
+                angle2 = 0;
+                angle3 = 0;
+            elseif layer.h.structure.enableTranslation %rand(1) > .8
+                xoffset = 2*(rand(1)-.5)*.1;
+                yoffset = 2*(rand(1)-.5)*.1;
+            end
 
             T = inv(T); % cam to world
-            T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([0 0 1 pi*angle/180]);
+%             T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([0 0 1 pi*angle/180]);
+            T(1:3, 1:3) = T(1:3, 1:3)*eul2rotm([pi*angle1/180 pi*angle2/180 pi*angle3/180]);
+            T(1:3, end) = T(1:3, end) + T(1:3, 1)*xoffset + T(1:3, 2)*yoffset;  
 
 %             T(1:3, 1:3) = T(1:3, 1:3)*axang2rotm([1 0 0 pi]); % this make camera look backwards
 
@@ -153,7 +201,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             assert(length(layer.objNames)==1, "only one object is supported per nerf")
 
-            nerf.setTransform({layer.objNames{1}, T})
+            nerf.setTransform(layer.objNames{1}, T)
             [img, depth] = nerf.renderObject(layer.height, layer.width, fov, layer.objNames{1});
             imgNerf = uint8(255*img);
 
@@ -187,14 +235,14 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             %                         layer.h.structure.(layer.Name).angle{curInd} = angle;
             %                 else
 
-            A = [cosd(angle) -sind(angle) 0; sind(angle) cosd(angle) 0; 0 0 1];
+%             A = [cosd(angle) -sind(angle) 0; sind(angle) cosd(angle) 0; 0 0 1];
 
-            tform = affinetform2d(A);
-            centerOutput = affineOutputView(size(imgNerf), tform, "BoundsStyle","CenterOutput");
-            imgNerfRot = imwarp(imgNerf, tform, "OutputView",centerOutput);
+%             tform = affinetform2d(A);
+%             centerOutput = affineOutputView(size(imgNerf), tform, "BoundsStyle","CenterOutput");
+%             imgNerfRot = imwarp(imgNerf, tform, "OutputView",centerOutput);
 
             % call LoFTR to get 2D points
-            [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerfRot);
+            [mkptsReal, mkptsNerf, mconf] = loftr.predict(imReal, imgNerf);
 
             %                 end
             %             else
@@ -260,8 +308,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             %             end
             %
 
-            tmp = inv(A)*cat(2, mkptsNerf - [layer.width/2 layer.height/2], ones(size(mkptsNerf, 1), 1) )';
-            mkptsNerf = tmp(1:2,:)' + [layer.width/2 layer.height/2];
+%             tmp = inv(A)*cat(2, mkptsNerf - [layer.width/2 layer.height/2], ones(size(mkptsNerf, 1), 1) )';
+%             mkptsNerf = tmp(1:2,:)' + [layer.width/2 layer.height/2];
 
 
             inds = floor(mkptsNerf);
@@ -272,11 +320,13 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
 
             %             goodInds = depth(inds) ~= 0;
             if ~contains(layer.Name, 'background')
-                goodInds = depth(inds) > 1;
+                goodInds = depth(inds) > .05;
             else
-                goodInds = depth(inds) > 1;
+                goodInds = depth(inds) > .05;
                 %                 depth = depth*0 + 10;
             end
+
+
 
             inds = inds(goodInds);
             if length(inds) < 3
@@ -330,8 +380,8 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             %             points = vec.*d;
 
             Z = -d;
-            X = -(xPix).*Z*fx;
-            Y = -(yPix).*Z*fy;
+            X = -(xPix).*Z*fx*.8;
+            Y = -(yPix).*Z*fy*.8;
             points = [X Y Z];
 
             points = points';  % camera coordinates
@@ -422,20 +472,21 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 layer.h.structure.(layer.Name).points{curInd} = [];
             end
 
-            if ~contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >=  10 %.9*size(layer.h.structure.(layer.Name).points{curInd}, 2) %size(layer.h.structure.(layer.Name).points{curInd}, 2)%3 %size(layer.h.structure.(layer.Name).points, 2)
+            if ~isempty(points) && size(points, 2) >=  .5*size(layer.h.structure.(layer.Name).points{curInd}, 2) %5%.8*size(layer.h.structure.(layer.Name).points{curInd}, 2) %size(layer.h.structure.(layer.Name).points{curInd}, 2)%3 %size(layer.h.structure.(layer.Name).points, 2)
                 layer.h.structure.(layer.Name).depthNerf{curInd} = [];
                 layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
                 layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
                 layer.h.structure.(layer.Name).mconf{curInd} = mconf;
                 layer.h.structure.(layer.Name).points{curInd} = points;
             end
-            if contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >= 10 %size(layer.h.structure.(layer.Name).points{curInd}, 2)
-                layer.h.structure.(layer.Name).depthNerf{curInd} = [];
-                layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
-                layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
-                layer.h.structure.(layer.Name).mconf{curInd} = mconf;
-                layer.h.structure.(layer.Name).points{curInd} = points;
-            end
+%             end
+%             if contains(layer.Name, 'background') && ~isempty(points) && size(points, 2) >= 10 %size(layer.h.structure.(layer.Name).points{curInd}, 2)
+%                 layer.h.structure.(layer.Name).depthNerf{curInd} = [];
+%                 layer.h.structure.(layer.Name).mkptsReal{curInd} = mkptsReal;
+%                 layer.h.structure.(layer.Name).mkptsNerf{curInd} = mkptsNerf;
+%                 layer.h.structure.(layer.Name).mconf{curInd} = mconf;
+%                 layer.h.structure.(layer.Name).points{curInd} = points;
+%             end
 
 
         end
@@ -541,11 +592,15 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
                 T = Tin;%(:,:,b); % world to cam
                 numPoints = 0;
                 bestAngle = [];
-                if layer.h.structure.enableRotation
-                    angles = [-90 0 90 180];
-                else
-                    angles = 0;
-                end
+%                 if layer.h.structure.enableRotation
+%                     angles = [-90 0 90 180];
+%                 else
+%                     angles = 0;
+%                 end
+            angles = 0;
+                
+  
+
                 for angle = angles
                     [mkptsNerf, mkptsReal, points, mconf, imgNerf, depth] = layer.render(T, angle, imReal);%layer.h.structure.(['memoizedRender' layer.objNames{1} '_' num2str(j)])(T);
                     if size(mkptsNerf, 1) > numPoints
@@ -578,7 +633,7 @@ classdef NerfLayer < nnet.layer.Layer & nnet.layer.Formattable & GlobalStruct
             pointsOut = dlarray(points, 'SSB');
             offset = [layer.width layer.height];
             [fl, fx, fy] = layer.getFValues();
-            mkptsRealNormalized = [fx -fy].*(mkptsReal - .5*offset)./offset;
+            mkptsRealNormalized = .8*[fx -fy].*(mkptsReal - .5*offset)./offset;
             mkptsRealNormalizedOut = dlarray(mkptsRealNormalized','SSB');
 
  

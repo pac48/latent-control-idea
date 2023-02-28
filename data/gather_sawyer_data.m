@@ -322,7 +322,7 @@ end
 %% validate data
 close all
 
-allTasks = {'pickbox', 'placebox', 'opendraw', 'pulldraw'}
+allTasks = {'pickiphone_box', 'placeplacebook', 'opendrawer', 'pulldrawer'}
 clutter = {'','clutter'};
 
 for j = 1:length(allTasks)
@@ -349,7 +349,7 @@ end
 
 %% convert data
 
-allTasks = {'pickiphone_box', 'placeiphone_box', 'opendrawer', 'pulldrawer'}
+allTasks = {'pickiphone_box', 'placeplacebook', 'opendrawer', 'pulldrawer'}
 clutter = {'','clutter'};
 
 for j = 1:length(allTasks)
@@ -370,6 +370,33 @@ for j = 1:length(allTasks)
             datapoint.Xd = Xd;
             save(['data/' task num2str(i)], "datapoint");
 
+
+
+        end
+    end
+end
+
+
+
+%% add lighting
+
+allTasks = {'pickiphone_box', 'placebook', 'opendrawer', 'pulldrawer'}
+clutter = {''};
+
+for j = 1:length(allTasks)
+    for c = 1:length(clutter)
+        task = [allTasks{j} clutter{c}];
+        if contains(task,'draw')
+            numDemos = 3;
+        else
+            numDemos = 6;
+        end
+
+        for i = 1:numDemos
+            tmp = load(['data/' task num2str(i)]);
+            datapoint =  tmp.datapoint;
+            datapoint.img = .5*datapoint.img;
+            save(['data/' task 'lighting' num2str(i)], "datapoint");
 
 
         end

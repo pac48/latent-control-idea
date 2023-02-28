@@ -1,4 +1,4 @@
-function [Trobot_object, points, imgtmp] = getObjectTransform(dlnet, map, object, Trobot_cam2)
+function [Trobot_object, points, imgtmp, pointsCam] = getObjectTransform(dlnet, map, object, Trobot_cam2)
 % points: nerf points in camera coordinates
 Trobot_object = []; 
 
@@ -24,6 +24,7 @@ if isempty(points)
     return
 end
 
+pointsCam = points; 
 points = Trobot_cam1(1:3, 1:3)*points + Trobot_cam1(1:3, end);
 
 if  ~strcmp(object, 'background')

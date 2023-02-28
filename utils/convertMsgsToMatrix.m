@@ -13,7 +13,7 @@ for i = 1:length(allMsg)
     for b = 2:length(bodyNames)
         bodyName = bodyNames{b};
         T = robot.getBodyTransform(bodyName);
-        X((1:3) +(b-1)*3, i) = T(1:3, end) - X(1:3, i);
+        X((1:3) +(b-1)*3, i) = T(1:3, end);% - X(1:3, i);
     end
 
 end
@@ -44,12 +44,12 @@ A(:, 1:numBasis-1) = radialBasis(t', c, width);
 
 Ad = zeros(length(t), numBasis);
 Ad(:, 1:numBasis-1) = radialBasisD(t', c, width);
-C = cat(1, A(end,:), Ad(1,:), Ad(end,:));
-d = [0;0];
+C = cat(1, A(end,:), A(1,:), Ad(end,:));
+d = [0];
 
 for i  = 1:size(X, 1)
     b = X(i, :);
-    dall = cat(1, b(end), d);
+    dall = cat(1, b(end), b(1), d);
     w = lsqlin(A, b, [], [], C, dall);
 
     x = A*w;

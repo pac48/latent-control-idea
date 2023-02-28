@@ -30,7 +30,7 @@ for pInd = 1:length(maps)
 %         end
      
 
-        [Trobot_object, points, imgtmp] = getObjectTransform(dlnet, map, object, Trobot_cam2);
+        [Trobot_object, points, imgtmp, pointsCam] = getObjectTransform(dlnet, map, object, Trobot_cam2);
         if isempty(points)
             continue
         end
@@ -51,6 +51,17 @@ for pInd = 1:length(maps)
         cData = permute(imgtmp, [3 1 2]);
         cData = reshape(cData, 3, [])';
         scatter3(points(1, :), points(2, :), points(3, :), 'CData', cData)
+
+% %         figure
+% %         Tcam2_object = extractdata(map([object '_nerf_T_world_2_cam']));
+% %         Tobject_cam2 = inv(Tcam2_object); 
+% %         points2 = Tobject_cam2(1:3,1:3)*pointsCam + Tobject_cam2(1:3,end);
+% % 
+% %         plotTF(eye(4), '-')
+% %         plotTF(Tobject_cam2, '--')
+% %         cData = permute(imgtmp, [3 1 2]);
+% %         cData = reshape(cData, 3, [])';
+% %         scatter3(points2(1, :), points2(2, :), points2(3, :), 'CData', cData)
 
         
     end
